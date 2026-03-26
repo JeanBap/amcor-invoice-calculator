@@ -332,6 +332,8 @@ return(<div className="container">
 <div className={`tab-btn${auditTab==="venueEdit"?" active":""}`} onClick={()=>setAuditTab("venueEdit")}>Venue Config</div>
 <div className={`tab-btn${auditTab==="rules"?" active":""}`} onClick={()=>setAuditTab("rules")}>Rules Docs</div>
 <div className={`tab-btn${auditTab==="daily"?" active":""}`} onClick={()=>setAuditTab("daily")}>Daily Breakdown</div>
+<div className={`tab-btn${auditTab==="calcRef"?" active":""}`} onClick={()=>setAuditTab("calcRef")}>Calc Reference</div>
+<div className={`tab-btn${auditTab==="calcTrace"?" active":""}`} onClick={()=>setAuditTab("calcTrace")}>Calc Trace</div>
 </div>
 
 {/* VALIDATION */}
@@ -484,6 +486,182 @@ return<tr key={vn}><td style={{fontWeight:600}}>{vn}</td><td><span className={`b
 <td>${r.H_BasePay}</td><td style={{color:parseFloat(r.H_PremPay)>0?"#dc2626":"inherit"}}>${r.H_PremPay}</td>
 <td style={{fontWeight:700}}>${r.H_TotalCalcWages}</td></tr>)}
 </tbody></table></div>
+</div>}
+
+{/* CALC REFERENCE */}
+{auditTab==="calcRef"&&<div className="card">
+<h2>Calculation Reference: Every Field Explained</h2>
+<div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Complete formula documentation for all 58 calculated fields across the 10-stage pipeline. Constants: FICA=7.65%, FUTA=0.6%, WC_Default=4.4%, OT_Multiplier=1.5x, Daily_OT_Threshold=8hrs.</div>
+<div className="tw" style={{maxHeight:600}}><table className="mini-table">
+<thead><tr><th style={{width:60}}>Stage</th><th style={{width:160}}>Field</th><th>Formula / Logic</th><th style={{width:120}}>Example (8hr @ 08:00 Mon)</th></tr></thead>
+<tbody>
+{[
+["1. Time Parse","A_StartDate","Extract date from Shift Start Time (YYYY-MM-DD)","2026-03-23"],
+["1. Time Parse","A_StartHour","Extract hour + minutes/60 from Shift Start Time","8.0"],
+["1. Time Parse","A_Day1_WD","JS getDay(): Sun=7, Mon=1..Sat=6","1 (Mon)"],
+["1. Time Parse","A_Day1_Name","Lookup: DN[Day1_WD - 1]","Mon"],
+["1. Time Parse","A_Day2_WD","Day1_WD == 7 ? 1 : Day1_WD + 1","2 (Tue)"],
+["1. Time Parse","A_Day2_Name","Lookup: DN[Day2_WD - 1]","Tue"],
+["2. Day Divide","B_DayDivideHour","From venue config (vc.dd). Hazleton: configurable 0/5/6/7/23. Others: 0 (midnight)","0"],
+["2. Day Divide","B_HrsToBoundary","if(endHr <= startHr) (24 - startHr) + endHr else endHr - startHr. Where endHr = DayDivideHour","16.0"],
+["2. Day Divide","B_Day1Hrs","min(TotalHours, HrsToBoundary)","8.0"],
+["2. Day Divide","B_Day2Hrs","max(0, TotalHours - HrsToBoundary)","0.0"],
+["3. Venue Config","C_WkStart","vc.w: 'Sunday' or 'Monday' from venue lookup","Sunday"],
+["3. Venue Config","C_SunOT","vc.so ? 'Y' : 'N' -- Sunday hours count as OT","N"],
+["3. Venue Config","C_SatPrem","vc.sp (null or multiplier like 1.5)",""],
+["3. Venue Config","C_HrMethod","Original venue hour method before dynamic override","standard"],
+["3. Venue Config","C_EffMethod","After Neenah auto-detect, Batavia pay group overrides","standard"],
+["3. Venue Config","C_UnpaidLunch","vc.ul ? 'Y' : 'N' -- 30min lunch deducted if shift > 6hrs","N"],
+["4. Hour Assign","(effective)","scheduled_in: all hrs to Day1. majority_hours: all hrs to day with more physical hrs. scheduled_out: if start+hrs+break >= 24, all to Day2. standard: use physical split.","Day1=8, Day2=0"],
+["4. Daily OT","D_D1Reg","min(Day1Hrs, 8)","8.0"],
+["4. Daily OT","D_D1DailyOT","max(0, Day1Hrs - 8)","0.0"],
+["4. Daily OT","D_D1Sun","Day1_WD == 7 ? 'Y' : 'N'","N"],
+["4. Daily OT","D_D1Sat","Day1_WD == 6 ? 'Y' : 'N'","N"],
+["5. Day2 OT","E_D2Reg","if Day2Hrs > 0: min(Day2Hrs, 8) else 0","0.0"],
+["5. Day2 OT","E_D2DailyOT","if Day2Hrs > 0: max(0, Day2Hrs - 8) else 0","0.0"],
+["5. Day2 OT","E_D2Sun","Day2_WD == 7 ? 'Y' : 'N'","N"],
+["5. Day2 OT","E_D2Sat","Day2_WD == 6 ? 'Y' : 'N'","N"],
+["6. Weekly OT","F_WkKey","WorkerName + '|' + ClientWeekEndDate","Worker|2026-03-28"],
+["6. Weekly OT","F_PriorHrs","Sum of all previous hours for this worker+week (running accumulator)","0.0"],
+["6. Weekly OT","F_Cumul","PriorHrs + TotalHours","8.0"],
+["6. Weekly OT","F_WkReg","max(0, min(TotalHours, OT_Threshold - PriorHrs))","8.0"],
+["6. Weekly OT","F_WkOT","max(0, TotalHours - WkReg)","0.0"],
+["7. Premium","G_SunHrs","Physical Sunday hrs: (D1Sun?D1Hrs:0) + (D2Sun?D2Hrs:0)","0.0"],
+["7. Premium","G_SatHrs","Physical Saturday hrs: (D1Sat?D1Hrs:0) + (D2Sat?D2Hrs:0)","0.0"],
+["7. Premium","G_EffSunHrs","Effective Sunday hrs after hour method reassignment","0.0"],
+["7. Premium","G_EffSatHrs","Effective Saturday hrs after hour method reassignment","0.0"],
+["7. Premium","G_SunPrem","if vc.so: min(EffSunHrs, WkReg) else 0","0.0"],
+["7. Premium","G_SatRegOnly","Physical Saturday reg hrs: (D1Sat?D1Reg:0) + (D2Sat?D2Reg:0)","0.0"],
+["7. Premium","G_DOTinWkReg","min(D1DailyOT + D2DailyOT, WkReg) -- daily OT that fits in weekly reg","0.0"],
+["7. Premium","G_SatPremHrs","if vc.sp != null: min(SatRegOnly, max(0, WkReg - SunPrem - DOTinWkReg)) else 0","0.0"],
+["8. Pay Calc","H_BaseHrs","max(0, WkReg - DOTinWkReg - SunPrem - SatPremHrs)","8.0"],
+["8. Pay Calc","H_PremHrs","TotalHours - BaseHrs","0.0"],
+["8. Pay Calc","H_BasePay","BaseHrs * PayRate","148.00"],
+["8. Pay Calc","H_PremPay","PremHrs * PayRate * 1.5","0.00"],
+["8. Pay Calc","H_TotalCalcWages","BasePay + PremPay","148.00"],
+["9. Tax/Fee","I_FICA","TotalCalcWages * 7.65 / 100","11.322"],
+["9. Tax/Fee","I_FUTA","TotalCalcWages * 0.6 / 100","0.888"],
+["9. Tax/Fee","I_SUTA","TotalCalcWages * SUTA_Rate / 100. Rate = lookup(EmployerID, State) or fallback(State) or 3.35%","varies"],
+["9. Tax/Fee","I_SUTA_Rate","Lookup: SUTA_ES[eid_state] || SUTA_F[state] || 3.35","varies"],
+["9. Tax/Fee","I_WC","TotalCalcWages * WC_Rate / 100. Rate = lookup(Role_State) or 4.4%","varies"],
+["9. Tax/Fee","I_WC_Rate","Lookup: WC_RS[role_state] || 4.4","varies"],
+["9. Tax/Fee","I_EmpLiability","TotalCalcWages * NationalInsurance% / 100","20.424"],
+["9. Tax/Fee","I_FlexFee","TotalCalcWages * FlexFee% / 100","3.700"],
+["9. Tax/Fee","I_OneLineRate","if TotalMarkup%: UnitAmount * (1 + Markup/100) else UnitAmount","26.825"],
+["9. Tax/Fee","I_OneLineTotal","TotalHours * OneLineRate","214.600"],
+["10. Flags","J_SunOT","'WARNING' if vc.so && EffSunHrs > 0 && RateType == 'Regular'",""],
+["10. Flags","J_SatPrem","'WARNING' if vc.sp != null && EffSatHrs > 0",""],
+["10. Flags","J_UnpaidLunch","'WARNING' if vc.ul (Russellville)",""],
+["10. Flags","J_WeeklyOT","'INFO' if WkOT > 0 (cumulative hours exceeded 40)",""],
+["10. Flags","J_DailyOT","'INFO' if D1DailyOT + D2DailyOT > 0 (any day > 8hrs)",""],
+["10. Flags","J_CrossesBoundary","'INFO' if Day2Hrs > 0 (shift crosses day divide)",""],
+["10. Flags","J_WWMismatch","'WARNING' if Workweek field != venue config week start",""]
+].map(([stage,field,formula,ex],i)=><tr key={i} style={{background:i%2===0?"#fff":"#f8fafc"}}>
+<td><span className={`badge ${stage.startsWith("1")?"bb":stage.startsWith("2")?"ba":stage.startsWith("3")?"bp":stage.startsWith("4")?"bg":stage.startsWith("5")?"bg":stage.startsWith("6")?"bb":stage.startsWith("7")?"ba":stage.startsWith("8")?"bg":stage.startsWith("9")?"bp":"br"}`}>{stage}</span></td>
+<td style={{fontWeight:600,fontFamily:"monospace",fontSize:11}}>{field}</td>
+<td style={{whiteSpace:"normal",maxWidth:400,fontSize:11}}>{formula}</td>
+<td style={{fontFamily:"monospace",fontSize:11,color:"#059669"}}>{ex}</td>
+</tr>)}
+</tbody></table></div>
+<div style={{marginTop:12,fontSize:11,color:"#64748b"}}>
+<b>Precedence order for premium classification (Stage 7):</b> Sunday OT premium > Daily OT in weekly reg > Saturday premium > Base hours. Each category consumes from the weekly regular pool first.
+<br/><b>Hour method priority:</b> scheduled_in (all to start day) > majority_hours (all to day with more physical hrs) > scheduled_out (if crosses midnight, all to Day2) > standard (physical split at day divide).
+<br/><b>SUTA lookup chain:</b> SUTA_ES[employerID_state] -> SUTA_F[state] -> 3.35% default.
+<br/><b>WC lookup chain:</b> WC_RS[role_state] -> 4.4% default.
+</div>
+</div>}
+
+{/* CALC TRACE */}
+{auditTab==="calcTrace"&&<div className="card">
+<h2>Calculation Trace <span className="badge bb">{dr.length} rows</span></h2>
+<div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Step-by-step calculation breakdown for every processed row. Click a row to expand full trace.</div>
+{dr.length===0&&<div style={{padding:20,textAlign:"center",color:"#94a3b8"}}>Run calculations first to see traces.</div>}
+<div style={{maxHeight:600,overflow:"auto"}}>
+{dr.map((r,i)=>{const tk=`trace_${i}`;const isOpen=openGroups[tk];
+const stages=[
+{name:"1. Time Parse",items:[
+["A_StartDate",r.A_StartDate,"Extracted date from: "+r["Shift Start Time"]],
+["A_StartHour",r.A_StartHour,"Hour: "+r.A_StartHour],
+["A_Day1_Name",r.A_Day1_Name,"Weekday index: "+r.A_Day1_WD],
+["A_Day2_Name",r.A_Day2_Name,"Weekday index: "+r.A_Day2_WD]]},
+{name:"2. Day Divide",items:[
+["B_DayDivideHour",r.B_DayDivideHour,"Venue divide hour (0=midnight)"],
+["B_HrsToBoundary",r.B_HrsToBoundary,`From ${r.A_StartHour}h to boundary ${r.B_DayDivideHour}h`],
+["B_Day1Hrs",r.B_Day1Hrs,`min(${r["*Hours"]}, ${r.B_HrsToBoundary})`],
+["B_Day2Hrs",r.B_Day2Hrs,`max(0, ${r["*Hours"]} - ${r.B_HrsToBoundary})`]]},
+{name:"3. Venue Config",items:[
+["C_WkStart",r.C_WkStart,"Venue: "+r.Venue],
+["C_EffMethod",r.C_EffMethod,"Original: "+r.C_HrMethod+(r.C_HrMethod!==r.C_EffMethod?" -> Override: "+r.C_EffMethod:"")],
+["C_SunOT",r.C_SunOT,"Sunday hours at OT rate"],
+["C_SatPrem",r.C_SatPrem||"-","Saturday premium multiplier"],
+["C_UnpaidLunch",r.C_UnpaidLunch,"30min deducted if >6hrs"]]},
+{name:"4. Day1 OT",items:[
+["D_D1Reg",r.D_D1Reg,`min(${r.B_Day1Hrs}, 8)`],
+["D_D1DailyOT",r.D_D1DailyOT,`max(0, ${r.B_Day1Hrs} - 8)`],
+["D_D1Sun",r.D_D1Sun,`Day1 weekday ${r.A_Day1_WD} == 7?`],
+["D_D1Sat",r.D_D1Sat,`Day1 weekday ${r.A_Day1_WD} == 6?`]]},
+{name:"5. Day2 OT",items:[
+["E_D2Reg",r.E_D2Reg,r.B_Day2Hrs>0?`min(${r.B_Day2Hrs}, 8)`:"No Day2 hours"],
+["E_D2DailyOT",r.E_D2DailyOT,r.B_Day2Hrs>0?`max(0, ${r.B_Day2Hrs} - 8)`:"No Day2 hours"],
+["E_D2Sun",r.E_D2Sun,`Day2 weekday ${r.A_Day2_WD} == 7?`],
+["E_D2Sat",r.E_D2Sat,`Day2 weekday ${r.A_Day2_WD} == 6?`]]},
+{name:"6. Weekly OT",items:[
+["F_PriorHrs",r.F_PriorHrs,"Accumulated before this shift"],
+["F_Cumul",r.F_Cumul,`${r.F_PriorHrs} + ${r["*Hours"]}`],
+["F_WkReg",r.F_WkReg,`max(0, min(${r["*Hours"]}, 40 - ${r.F_PriorHrs}))`],
+["F_WkOT",r.F_WkOT,`max(0, ${r["*Hours"]} - ${r.F_WkReg})`]]},
+{name:"7. Premium Class",items:[
+["G_EffSunHrs",r.G_EffSunHrs,"Effective Sunday hrs after method"],
+["G_EffSatHrs",r.G_EffSatHrs,"Effective Saturday hrs after method"],
+["G_SunPrem",r.G_SunPrem,r.C_SunOT==="Y"?`min(${r.G_EffSunHrs}, ${r.F_WkReg})`:"Venue has no Sunday OT"],
+["G_DOTinWkReg",r.G_DOTinWkReg,`min(${parseFloat(r.D_D1DailyOT)+parseFloat(r.E_D2DailyOT)}, ${r.F_WkReg})`],
+["G_SatPremHrs",r.G_SatPremHrs,r.C_SatPrem?`min(${r.G_SatRegOnly}, max(0, ${r.F_WkReg} - ${r.G_SunPrem} - ${r.G_DOTinWkReg}))`:"No sat premium"]]},
+{name:"8. Pay Calc",items:[
+["H_BaseHrs",r.H_BaseHrs,`max(0, ${r.F_WkReg} - ${r.G_DOTinWkReg} - ${r.G_SunPrem} - ${r.G_SatPremHrs})`],
+["H_PremHrs",r.H_PremHrs,`${r["*Hours"]} - ${r.H_BaseHrs}`],
+["H_BasePay",r.H_BasePay,`${r.H_BaseHrs} * ${r["Pay Rate"]}`],
+["H_PremPay",r.H_PremPay,`${r.H_PremHrs} * ${r["Pay Rate"]} * 1.5`],
+["H_TotalCalcWages",r.H_TotalCalcWages,`${r.H_BasePay} + ${r.H_PremPay}`]]},
+{name:"9. Tax/Fee",items:[
+["I_FICA",r.I_FICA,`${r.H_TotalCalcWages} * 7.65%`],
+["I_FUTA",r.I_FUTA,`${r.H_TotalCalcWages} * 0.6%`],
+["I_SUTA",r.I_SUTA,`${r.H_TotalCalcWages} * ${r.I_SUTA_Rate}%`],
+["I_WC",r.I_WC,`${r.H_TotalCalcWages} * ${r.I_WC_Rate}%`],
+["I_EmpLiability",r.I_EmpLiability,`${r.H_TotalCalcWages} * NI%`],
+["I_FlexFee",r.I_FlexFee,`${r.H_TotalCalcWages} * FlexFee%`]]},
+{name:"10. Flags",items:[
+["J_SunOT",r.J_SunOT||"-","SunOT venue + Sunday hrs + Regular rate"],
+["J_SatPrem",r.J_SatPrem||"-","SatPrem venue + Saturday hrs"],
+["J_WeeklyOT",r.J_WeeklyOT||"-","WkOT > 0"],
+["J_DailyOT",r.J_DailyOT||"-","Any day > 8hrs"],
+["J_CrossesBoundary",r.J_CrossesBoundary||"-","Day2Hrs > 0"],
+["J_WWMismatch",r.J_WWMismatch||"-","Workweek != venue week start"]]}
+];
+return(<div key={i} style={{marginBottom:4}}>
+<div className="grouping-header" onClick={()=>toggleGroup(tk)} style={{borderLeftColor:r.J_SunOT||r.J_SatPrem?"#dc2626":r.J_WeeklyOT||r.J_DailyOT?"#2563eb":"#16a34a"}}>
+<span className={`collapse-icon${isOpen?" open":""}`} style={{marginRight:8}}>&#9654;</span>
+<b>#{i+1}</b> <span style={{marginLeft:8}}>{r["Worker Name"]}</span> <span style={{color:"#64748b"}}>@</span> <span className="badge bb">{r.Venue}</span>
+<span style={{marginLeft:8,color:"#64748b"}}>{r["*Hours"]}h from {r.A_StartHour}h on {r.A_Day1_Name}</span>
+<span style={{float:"right"}}><span style={{fontWeight:700,color:"#059669"}}>${r.H_TotalCalcWages}</span>
+{r.J_SunOT&&<span className="badge br" style={{marginLeft:4}}>SunOT</span>}
+{r.J_SatPrem&&<span className="badge ba" style={{marginLeft:4}}>SatPrem</span>}
+{r.J_WeeklyOT&&<span className="badge bb" style={{marginLeft:4}}>WkOT</span>}
+{r.J_DailyOT&&<span className="badge bp" style={{marginLeft:4}}>DailyOT</span>}
+{r.J_CrossesBoundary&&<span className="badge bb" style={{marginLeft:4}}>Crosses</span>}
+</span></div>
+{isOpen&&<div style={{padding:"8px 16px 16px",background:"#fafbfc",borderRadius:"0 0 8px 8px"}}>
+{stages.map((stg,si)=><div key={si} style={{marginBottom:12}}>
+<div style={{fontWeight:700,fontSize:12,color:"#1e3a5f",marginBottom:4,borderBottom:"1px solid #e2e8f0",paddingBottom:4}}>{stg.name}</div>
+<div style={{display:"grid",gridTemplateColumns:"160px 80px 1fr",gap:"2px 12px",fontSize:11}}>
+{stg.items.map(([field,val,formula],fi)=><React.Fragment key={fi}>
+<span style={{fontFamily:"monospace",fontWeight:600,color:"#475569"}}>{field}</span>
+<span style={{fontFamily:"monospace",color:"#059669",fontWeight:600}}>{String(val)}</span>
+<span style={{color:"#64748b"}}>{formula}</span>
+</React.Fragment>)}
+</div></div>)}
+</div>}
+</div>)})}
+</div>
 </div>}
 
 </div>}
