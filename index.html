@@ -229,6 +229,8 @@ const[mainTab,setMainTab]=useState("calc");const fr=useRef();
 const[audit,setAudit]=useState(false);const[auditTab,setAuditTab]=useState("validation");
 const[fieldMap,setFieldMap]=useState({});const[openGroups,setOpenGroups]=useState({});
 const[editVC,setEditVC]=useState(()=>JSON.parse(JSON.stringify(VC)));
+const[anlFilters,setAnlFilters]=useState({});const[anlGroupBy,setAnlGroupBy]=useState(["Venue"]);const[anlExpanded,setAnlExpanded]=useState({});
+const[invoiceBy,setInvoiceBy]=useState("Venue");const[venueFees,setVenueFees]=useState({});const[invExpanded,setInvExpanded]=useState({});
 
 const hFile=useCallback(f=>{if(!f)return;setFn(f.name);const r=new FileReader();r.onload=e=>{const p=Papa.parse(e.target.result,{header:true,skipEmptyLines:true});setRaw(p.data);setIc(p.meta.fields||[]);setRes(null);setStats(null);
 // Auto-map fields
@@ -236,12 +238,46 @@ const m={};const cols=p.meta.fields||[];
 FLEX_FIELDS.forEach(ff=>{const exact=cols.find(c=>c===ff.key);if(exact){m[ff.key]=exact;return}
 const lower=cols.find(c=>c.toLowerCase()===ff.key.toLowerCase());if(lower)m[ff.key]=lower;});
 setFieldMap(m);
+// Parse fee/NI percentages per venue
+const fees={};const rows=p.data;const hasFeeCol=cols.includes("Flex Fee %");const hasNICol=cols.includes("National Insurance %");
+// Method 1: From Description rows ("Employer liability @ X%" / "fee @ X%")
+let lastVenue=null;
+for(let i=0;i<rows.length;i++){const r=rows[i];const v=(r["Venue"]||r["NS_Reference"]||"").trim();const desc=(r["*Description"]||"").trim();
+if(v&&v!=="#N/A"&&desc&&/^\d{2}\//.test(desc))lastVenue=v;
+if(desc.match(/employer\s+liability\s*@\s*([\d.]+)%/i)){const m=desc.match(/employer\s+liability\s*@\s*([\d.]+)%/i);if(lastVenue&&m){if(!fees[lastVenue])fees[lastVenue]={};fees[lastVenue].niPct=parseFloat(m[1])}}
+if(desc.match(/fee\s*@\s*([\d.]+)%/i)){const m=desc.match(/fee\s*@\s*([\d.]+)%/i);if(lastVenue&&m){if(!fees[lastVenue])fees[lastVenue]={};fees[lastVenue].feePct=parseFloat(m[1])}}}
+// Method 2: From columns on shift rows (fallback/supplement)
+for(let i=0;i<rows.length;i++){const r=rows[i];const v=(r["Venue"]||"").trim();if(!v||v==="#N/A")continue;
+const fp=parseFloat(r["Flex Fee %"]);const ni=parseFloat(r["National Insurance %"]);
+if(!fees[v])fees[v]={};
+if(!isNaN(fp)&&fp>0&&!fees[v].feePct)fees[v].feePct=fp;
+if(!isNaN(ni)&&ni>0&&!fees[v].niPct)fees[v].niPct=ni;}
+setVenueFees(fees);
 };r.readAsText(f)},[]);
 
 const run=()=>{if(!raw)return;const r=pAll(raw,op);setRes(r);const proc=r.filter(x=>x.A_StartDate);const sk=r.length-proc.length;
 const vs=[...new Set(proc.map(x=>x.Venue))].sort();const tw=proc.reduce((s,x)=>s+(parseFloat(x.H_TotalCalcWages)||0),0);
 const wn=proc.filter(x=>x.J_SunOT||x.J_SatPrem||x.J_UnpaidLunch||x.J_WWMismatch).length;
 setStats({total:r.length,proc:proc.length,skip:sk,vs,tw:tw.toFixed(2),wn});setMainTab("calc")};
+
+const genInvoices=(proc,dim,fees)=>{
+const INV_DIMS={Venue:r=>(r.Venue||"").trim(),"PO Number":r=>(r["PO Number"]||"").trim()||"(none)",Worker:r=>(r["Worker Name"]||"").trim(),"Client Week End Date":r=>(r["Client Week End Date"]||"").trim(),"C_WkStart":r=>r.C_WkStart||""};
+const getKey=INV_DIMS[dim]||(r=>(r.Venue||"").trim());
+const groups={};
+proc.forEach(r=>{const k=getKey(r);if(!groups[k])groups[k]={key:k,rows:[],grossWages:0,venues:new Set()};
+groups[k].rows.push(r);groups[k].grossWages+=parseFloat(r.H_TotalCalcWages)||0;groups[k].venues.add((r.Venue||"").trim())});
+return Object.values(groups).map(g=>{
+// Get fee/NI %: use venue-specific if single venue, otherwise weighted average
+let feePct=0,niPct=0;
+if(g.venues.size===1){const v=[...g.venues][0];feePct=(fees[v]||{}).feePct||0;niPct=(fees[v]||{}).niPct||0}
+else{// weighted by wages per venue
+const byV={};g.rows.forEach(r=>{const v=(r.Venue||"").trim();if(!byV[v])byV[v]=0;byV[v]+=parseFloat(r.H_TotalCalcWages)||0});
+let wFee=0,wNI=0;Object.entries(byV).forEach(([v,w])=>{wFee+=w*((fees[v]||{}).feePct||0);wNI+=w*((fees[v]||{}).niPct||0)});
+if(g.grossWages>0){feePct=wFee/g.grossWages;niPct=wNI/g.grossWages}}
+const feeAmt=fm(g.grossWages*feePct/100);const niAmt=fm(g.grossWages*niPct/100);
+const totalHrs=g.rows.reduce((s,r)=>s+(parseFloat(r["*Hours"])||0),0);
+return{...g,venues:[...g.venues].sort(),grossWages:fm(g.grossWages),feePct:fm(feePct),niPct:fm(niPct),feeAmt,niAmt,invoiceTotal:fm(g.grossWages+feeAmt+niAmt),totalHrs:fm(totalHrs),workers:[...new Set(g.rows.map(r=>(r["Worker Name"]||"").trim()))].sort()}
+}).sort((a,b)=>b.invoiceTotal-a.invoiceTotal)};
 
 const dl=()=>{if(!res)return;const ac=[...ic,...CC];const h=ac.join(",");const rs=res.map(r=>ac.map(c=>{const v=String(r[c]||"");return v.includes(",")?`"${v}"`:v}).join(","));
 const csv=[h,...rs].join("\n");const b=new Blob([csv],{type:"text/csv"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="Amcor_Calculated_Output.csv";a.click();URL.revokeObjectURL(u)};
@@ -250,6 +286,55 @@ const validation=useMemo(()=>raw&&res?getValidation(raw,res):null,[raw,res]);
 const inputSum=useMemo(()=>raw?getInputSummary(raw):null,[raw]);
 const outputSum=useMemo(()=>res?getOutputSummary(res):null,[res]);
 const grouping=useMemo(()=>res?getGrouping(res):null,[res]);
+const invoices=useMemo(()=>{if(!res)return null;const proc=res.filter(r=>r.A_StartDate);if(!proc.length)return null;return genInvoices(proc,invoiceBy,venueFees)},[res,invoiceBy,venueFees]);
+
+// ═══ ANALYSIS DIMENSIONS ═══
+const ANL_DIMS=[
+{key:"Venue",label:"Venue",get:r=>(r.Venue||"").trim()},
+{key:"Worker",label:"Worker",get:r=>(r["Worker Name"]||"").trim()},
+{key:"Day",label:"Day",get:r=>r.A_Day1_Name||""},
+{key:"A_StartDate",label:"Shift Date",get:r=>r.A_StartDate||""},
+{key:"PO Number",label:"PO Number",get:r=>(r["PO Number"]||"").trim()||"(none)"},
+{key:"Client Week End Date",label:"Original Invoice Week",get:r=>(r["Client Week End Date"]||"").trim()},
+{key:"C_WkStart",label:"Assigned Week Start",get:r=>r.C_WkStart||""},
+{key:"Worker State",label:"State",get:r=>(r["Worker State"]||"").trim()},
+{key:"C_EffMethod",label:"Hour Method",get:r=>r.C_EffMethod||""},
+{key:"NS_Role",label:"Role",get:r=>(r["NS_Role"]||"").trim()||"(none)"}
+];
+
+const anlData=useMemo(()=>{
+if(!res)return null;
+const proc=res.filter(r=>r.A_StartDate);
+// Apply filters
+const filtered=proc.filter(r=>Object.entries(anlFilters).every(([dim,vals])=>{
+if(!vals||vals.length===0)return true;
+const d=ANL_DIMS.find(x=>x.key===dim);if(!d)return true;
+return vals.includes(d.get(r));
+}));
+// Get unique values per dimension for filter dropdowns
+const dimVals={};ANL_DIMS.forEach(d=>{const s=new Set();proc.forEach(r=>s.add(d.get(r)));dimVals[d.key]=[...s].sort()});
+// Group by selected dimensions
+const groups={};
+filtered.forEach(r=>{
+const gk=anlGroupBy.map(dim=>{const d=ANL_DIMS.find(x=>x.key===dim);return d?d.get(r):""}).join(" | ");
+if(!groups[gk])groups[gk]={key:gk,parts:{},rows:[],totalHrs:0,baseHrs:0,premHrs:0,basePay:0,premPay:0,totalWages:0,fica:0,suta:0,wc:0,wkOT:0,dailyOT:0,warnings:0};
+const g=groups[gk];
+anlGroupBy.forEach(dim=>{const d=ANL_DIMS.find(x=>x.key===dim);if(d)g.parts[dim]=d.get(r)});
+g.rows.push(r);g.totalHrs+=sf(r["*Hours"]);g.baseHrs+=parseFloat(r.H_BaseHrs)||0;g.premHrs+=parseFloat(r.H_PremHrs)||0;
+g.basePay+=parseFloat(r.H_BasePay)||0;g.premPay+=parseFloat(r.H_PremPay)||0;g.totalWages+=parseFloat(r.H_TotalCalcWages)||0;
+g.fica+=parseFloat(r.I_FICA)||0;g.suta+=parseFloat(r.I_SUTA)||0;g.wc+=parseFloat(r.I_WC)||0;
+g.wkOT+=parseFloat(r.F_WkOT)||0;g.dailyOT+=(parseFloat(r.D_D1DailyOT)||0)+(parseFloat(r.E_D2DailyOT)||0);
+if(r.J_SunOT||r.J_SatPrem||r.J_UnpaidLunch||r.J_WWMismatch)g.warnings++;
+});
+const sorted=Object.values(groups).sort((a,b)=>b.totalWages-a.totalWages);
+const totals={rows:filtered.length,totalHrs:0,baseHrs:0,premHrs:0,basePay:0,premPay:0,totalWages:0,fica:0,suta:0,wc:0,wkOT:0,dailyOT:0,warnings:0};
+sorted.forEach(g=>{totals.totalHrs+=g.totalHrs;totals.baseHrs+=g.baseHrs;totals.premHrs+=g.premHrs;totals.basePay+=g.basePay;totals.premPay+=g.premPay;totals.totalWages+=g.totalWages;totals.fica+=g.fica;totals.suta+=g.suta;totals.wc+=g.wc;totals.wkOT+=g.wkOT;totals.dailyOT+=g.dailyOT;totals.warnings+=g.warnings});
+return{filtered,dimVals,groups:sorted,totals,allProc:proc.length};
+},[res,anlFilters,anlGroupBy]);
+
+const toggleAnlDim=(dim)=>{setAnlGroupBy(prev=>prev.includes(dim)?prev.filter(d=>d!==dim):[...prev,dim])};
+const setAnlFilter=(dim,val)=>{setAnlFilters(prev=>{const n={...prev};if(!val||val==="")delete n[dim];else n[dim]=[val];return n})};
+const clearAnlFilters=()=>setAnlFilters({});
 
 const dc=all?[...ic,...CC]:KEY_COLS;const dr=res?res.filter(r=>r.A_StartDate):[];
 
@@ -264,6 +349,26 @@ return(<div className="container">
 {fn?<div><span className="badge bg">{fn}</span> <span style={{color:"#64748b",marginLeft:8}}>{raw?.length} rows loaded</span>{inputSum&&<span style={{color:"#64748b",marginLeft:8}}>| {inputSum.workers} workers | {inputSum.venues} venues</span>}</div>
 :<div style={{color:"#64748b"}}><div style={{fontSize:28,marginBottom:6}}>+</div><b>Drop CSV file here or click to browse</b><br/><span style={{fontSize:11}}>Supports Amcor timesheet CSV exports</span></div>}
 </div>
+
+{/* INVOICE BY SELECTOR - shown right after upload */}
+{raw&&<div className="card" style={{borderLeft:"3px solid #7c3aed"}}>
+<div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+<div><h2 style={{margin:0,color:"#7c3aed"}}>Invoice Grouping</h2><span style={{fontSize:11,color:"#94a3b8"}}>Choose how to group shifts into invoices</span></div>
+<div style={{minWidth:200}}><label>Invoice By</label><select value={invoiceBy} onChange={e=>setInvoiceBy(e.target.value)} style={{borderColor:"#7c3aed"}}>
+<option value="Venue">Venue</option>
+<option value="PO Number">PO Number</option>
+<option value="Worker">Worker</option>
+<option value="Client Week End Date">Invoice Week</option>
+<option value="C_WkStart">Week Start Day</option>
+</select></div>
+{Object.keys(venueFees).length>0&&<div style={{fontSize:11,color:"#16a34a"}}>
+<span className="badge bg">{Object.keys(venueFees).length} venues with fee/NI rates detected</span>
+</div>}
+{Object.keys(venueFees).length===0&&raw&&<div style={{fontSize:11,color:"#d97706"}}>
+<span className="badge ba">No fee/NI rates found in CSV</span>
+</div>}
+</div>
+</div>}
 
 {/* PROCESSING OPTIONS */}
 {raw&&<div className="card">
@@ -290,11 +395,256 @@ return(<div className="container">
 {res&&<div className="card" style={{padding:0,overflow:"hidden"}}>
 <div className="tab-bar">
 <div className={`tab-btn${mainTab==="calc"?" active":""}`} onClick={()=>setMainTab("calc")}>Calculated Results</div>
+<div className={`tab-btn${mainTab==="invoices"?" active":""}`} onClick={()=>setMainTab("invoices")} style={invoices&&invoices.length>0?{color:mainTab==="invoices"?"#7c3aed":"#94a3b8"}:{}}>Invoices{invoices?` (${invoices.length})`:""}</div>
+<div className={`tab-btn${mainTab==="analysis"?" active":""}`} onClick={()=>setMainTab("analysis")}>Analysis</div>
 <div className={`tab-btn${mainTab==="venue"?" active":""}`} onClick={()=>setMainTab("venue")}>Venue Reference</div>
 </div>
 {mainTab==="calc"&&<div className="tw"><table><thead><tr>{dc.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>
 {dr.map((r,i)=><tr key={i}>{dc.map(c=>{const v=r[c],s=String(v||"");let cl=CC.includes(c)?"cc":"";if(s.includes("WARNING"))cl="wn";else if(s.includes("INFO"))cl="inf";return<td key={c} className={cl}>{s}</td>})}</tr>)}
 </tbody></table></div>}
+{/* ═══ INVOICES VIEW ═══ */}
+{mainTab==="invoices"&&invoices&&<div style={{padding:16}}>
+{/* Invoice summary bar */}
+<div className="grid6" style={{marginBottom:16}}>
+{[["Invoices",invoices.length,"#7c3aed"],["Gross Wages","$"+fm(invoices.reduce((s,inv)=>s+inv.grossWages,0)).toLocaleString(),"#059669"],["Total Fees","$"+fm(invoices.reduce((s,inv)=>s+inv.feeAmt,0)).toLocaleString(),"#d97706"],["Total Employer Liability","$"+fm(invoices.reduce((s,inv)=>s+inv.niAmt,0)).toLocaleString(),"#dc2626"],["Grand Total","$"+fm(invoices.reduce((s,inv)=>s+inv.invoiceTotal,0)).toLocaleString(),"#1e3a5f"],["Grouped By",invoiceBy,"#2563eb"]].map(([l,v,c])=>
+<div key={l} className="stat" style={{borderLeft:`3px solid ${c}`}}><div className="lbl">{l}</div><div className="val" style={{color:c,fontSize:14}}>{v}</div></div>)}
+</div>
+
+{/* Fee/NI rates reference */}
+{Object.keys(venueFees).length>0&&<div style={{marginBottom:12}}>
+<details><summary style={{fontSize:12,fontWeight:600,color:"#475569",cursor:"pointer"}}>Fee/NI Rates by Venue ({Object.keys(venueFees).length} venues)</summary>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:6,marginTop:8}}>
+{Object.entries(venueFees).sort(([a],[b])=>a.localeCompare(b)).map(([v,f])=><div key={v} style={{fontSize:11,padding:"4px 8px",background:"#f8fafc",borderRadius:4,border:"1px solid #e2e8f0"}}>
+<b>{v}</b>: Fee {f.feePct||0}% | NI {f.niPct||0}%
+</div>)}
+</div></details>
+</div>}
+
+{/* Individual invoices */}
+<div style={{maxHeight:700,overflow:"auto"}}>
+{invoices.map((inv,ii)=>{const isOpen=invExpanded[inv.key];return(
+<div key={ii} style={{marginBottom:6}}>
+<div className="grouping-header" onClick={()=>setInvExpanded(p=>({...p,[inv.key]:!p[inv.key]}))} style={{borderLeftColor:"#7c3aed",padding:"10px 14px"}}>
+<span className={`collapse-icon${isOpen?" open":""}`} style={{marginRight:8}}>&#9654;</span>
+<span style={{fontWeight:700,fontSize:13}}>Invoice #{ii+1}: {inv.key}</span>
+<span style={{float:"right",display:"flex",gap:14,alignItems:"center",fontSize:12}}>
+<span><span className="lbl" style={{fontSize:9}}>SHIFTS</span> <b>{inv.rows.length}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>WORKERS</span> <b>{inv.workers.length}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>HRS</span> <b>{inv.totalHrs}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>WAGES</span> <b style={{color:"#059669"}}>${inv.grossWages.toLocaleString()}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>FEE</span> <b style={{color:"#d97706"}}>${inv.feeAmt.toLocaleString()}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>NI</span> <b style={{color:"#dc2626"}}>${inv.niAmt.toLocaleString()}</b></span>
+<span className="badge bp" style={{fontSize:11,padding:"3px 10px"}}>TOTAL: ${inv.invoiceTotal.toLocaleString()}</span>
+</span>
+</div>
+{isOpen&&<div style={{padding:"0 12px 12px",background:"#f8fafc",borderRadius:"0 0 8px 8px"}}>
+{/* Worker shift rows */}
+<table className="mini-table"><thead><tr><th>#</th><th>Worker</th><th>Venue</th><th>Date</th><th>Day</th><th>Hours</th><th>Pay Rate</th><th>Base Pay</th><th>Premium</th><th>Gross Wages</th></tr></thead><tbody>
+{inv.rows.map((r,ri)=><tr key={ri}>
+<td>{ri+1}</td><td>{r["Worker Name"]}</td><td>{r.Venue}</td><td>{r.A_StartDate}</td><td>{r.A_Day1_Name}</td>
+<td style={{fontWeight:600}}>{r["*Hours"]}</td><td>${r["Pay Rate"]||r.H_EffRate||"-"}</td>
+<td>${r.H_BasePay}</td><td style={{color:parseFloat(r.H_PremPay)>0?"#dc2626":"inherit"}}>${r.H_PremPay}</td>
+<td style={{fontWeight:700}}>${r.H_TotalCalcWages}</td>
+</tr>)}
+</tbody>
+{/* Fee line item */}
+<tbody style={{borderTop:"2px solid #e2e8f0"}}>
+<tr style={{background:"#fef3c7"}}>
+<td colSpan={9} style={{fontWeight:700,textAlign:"right",color:"#92400e"}}>Flex Fee ({inv.feePct}%)</td>
+<td style={{fontWeight:700,color:"#92400e"}}>${inv.feeAmt.toLocaleString()}</td>
+</tr>
+{/* NI line item */}
+<tr style={{background:"#fee2e2"}}>
+<td colSpan={9} style={{fontWeight:700,textAlign:"right",color:"#991b1b"}}>Employer Liability ({inv.niPct}%)</td>
+<td style={{fontWeight:700,color:"#991b1b"}}>${inv.niAmt.toLocaleString()}</td>
+</tr>
+</tbody>
+{/* Invoice total */}
+<tfoot><tr style={{background:"#1e3a5f",color:"#fff"}}>
+<td colSpan={5} style={{fontWeight:700,fontSize:13,padding:"8px 10px"}}>INVOICE TOTAL</td>
+<td style={{fontWeight:700}}>{inv.totalHrs} hrs</td><td colSpan={3} style={{textAlign:"right",fontSize:11}}>
+Wages: ${inv.grossWages.toLocaleString()} + Fee: ${inv.feeAmt.toLocaleString()} + NI: ${inv.niAmt.toLocaleString()}
+</td>
+<td style={{fontWeight:700,fontSize:14,padding:"8px 10px"}}>${inv.invoiceTotal.toLocaleString()}</td>
+</tr></tfoot>
+</table>
+{inv.venues.length>1&&<div style={{marginTop:6,fontSize:11,color:"#64748b"}}>Venues: {inv.venues.join(", ")}</div>}
+</div>}
+</div>)})}
+</div>
+
+{/* Grand total bar */}
+{invoices.length>0&&<div style={{marginTop:8,padding:"12px 16px",background:"linear-gradient(135deg,#1e3a5f,#7c3aed)",borderRadius:8,color:"#fff",fontSize:12}}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<span style={{fontWeight:700,fontSize:14}}>Grand Total ({invoices.length} invoices)</span>
+<span style={{display:"flex",gap:20}}>
+<span>Wages: <b>${fm(invoices.reduce((s,i)=>s+i.grossWages,0)).toLocaleString()}</b></span>
+<span>Fees: <b>${fm(invoices.reduce((s,i)=>s+i.feeAmt,0)).toLocaleString()}</b></span>
+<span>NI: <b>${fm(invoices.reduce((s,i)=>s+i.niAmt,0)).toLocaleString()}</b></span>
+<span style={{fontSize:16,fontWeight:700}}>Total: ${fm(invoices.reduce((s,i)=>s+i.invoiceTotal,0)).toLocaleString()}</span>
+</span>
+</div>
+</div>}
+</div>}
+{mainTab==="invoices"&&!invoices&&<div style={{padding:40,textAlign:"center",color:"#94a3b8"}}><p>Run calculations first to generate invoices.</p></div>}
+
+{/* ═══ ANALYSIS VIEW ═══ */}
+{mainTab==="analysis"&&anlData&&<div style={{padding:16}}>
+{/* ═══ QA RECONCILIATION ═══ */}
+{(()=>{
+const inp=raw||[];const proc=res?res.filter(r=>r.A_StartDate):[];const skip=res?res.filter(r=>!r.A_StartDate):[];
+const iWorkers=new Set(inp.map(r=>(r["Worker Name"]||"").trim()).filter(Boolean));
+const oWorkers=new Set(proc.map(r=>(r["Worker Name"]||"").trim()).filter(Boolean));
+const iVenues=new Set(inp.map(r=>(r["Venue"]||"").trim()).filter(x=>x&&x!=="#N/A"));
+const oVenues=new Set(proc.map(r=>(r["Venue"]||"").trim()).filter(Boolean));
+const iHrs=inp.reduce((s,r)=>s+sf(r["*Hours"]),0);
+const oHrs=proc.reduce((s,r)=>s+sf(r["*Hours"]),0);
+const iVW=new Set(inp.filter(r=>(r["Worker Name"]||"").trim()&&(r["Venue"]||"").trim()&&(r["Venue"]||"").trim()!=="#N/A").map(r=>`${(r["Venue"]||"").trim()}|${(r["Worker Name"]||"").trim()}`));
+const oVW=new Set(proc.map(r=>`${(r["Venue"]||"").trim()}|${(r["Worker Name"]||"").trim()}`));
+const missingW=[...iWorkers].filter(w=>!oWorkers.has(w));
+const missingV=[...iVenues].filter(v=>!oVenues.has(v));
+const missingVW=[...iVW].filter(k=>!oVW.has(k));
+const hrsMatch=Math.abs(iHrs-oHrs)<0.01;
+const allGood=missingW.length===0&&missingV.length===0&&hrsMatch&&iWorkers.size===oWorkers.size;
+// Filtered reconciliation
+const fRows=anlData.filtered;
+const fWorkers=new Set(fRows.map(r=>(r["Worker Name"]||"").trim()));
+const fVenues=new Set(fRows.map(r=>(r["Venue"]||"").trim()));
+const fHrs=fRows.reduce((s,r)=>s+sf(r["*Hours"]),0);
+const fVW=new Set(fRows.map(r=>`${(r["Venue"]||"").trim()}|${(r["Worker Name"]||"").trim()}`));
+const hasFilter=Object.keys(anlFilters).length>0;
+return(<div style={{marginBottom:16,background:allGood?"#ecfdf5":"#fef2f2",border:`1px solid ${allGood?"#86efac":"#fca5a5"}`,borderRadius:8,padding:12}}>
+<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+<span style={{fontSize:14,fontWeight:700,color:allGood?"#166534":"#991b1b"}}>{allGood?"QA Reconciliation: ALL MATCHED":"QA Reconciliation: DISCREPANCIES FOUND"}</span>
+<span className={`badge ${allGood?"bg":"br"}`}>{allGood?"PASS":"CHECK"}</span>
+</div>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8,fontSize:12}}>
+<div style={{background:"#fff",borderRadius:6,padding:8,border:"1px solid #e2e8f0"}}>
+<div style={{fontWeight:700,color:"#1e3a5f",marginBottom:4,borderBottom:"1px solid #e2e8f0",paddingBottom:4}}>Rows</div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Input CSV:</span><b>{inp.length}</b></div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Processed:</span><b style={{color:"#16a34a"}}>{proc.length}</b></div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Skipped:</span><b style={{color:skip.length>0?"#d97706":"#16a34a"}}>{skip.length}</b></div>
+{hasFilter&&<div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #e2e8f0",paddingTop:4,marginTop:4}}><span>Filtered view:</span><b style={{color:"#2563eb"}}>{fRows.length}</b></div>}
+</div>
+<div style={{background:"#fff",borderRadius:6,padding:8,border:"1px solid #e2e8f0"}}>
+<div style={{fontWeight:700,color:"#1e3a5f",marginBottom:4,borderBottom:"1px solid #e2e8f0",paddingBottom:4}}>Workers</div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Input:</span><b>{iWorkers.size}</b></div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Output:</span><b style={{color:iWorkers.size===oWorkers.size?"#16a34a":"#dc2626"}}>{oWorkers.size}</b></div>
+{missingW.length>0&&<div style={{color:"#dc2626",fontSize:11,marginTop:4}}>Missing: {missingW.slice(0,5).join(", ")}{missingW.length>5?` +${missingW.length-5} more`:""}</div>}
+{hasFilter&&<div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #e2e8f0",paddingTop:4,marginTop:4}}><span>Filtered:</span><b style={{color:"#2563eb"}}>{fWorkers.size}</b></div>}
+</div>
+<div style={{background:"#fff",borderRadius:6,padding:8,border:"1px solid #e2e8f0"}}>
+<div style={{fontWeight:700,color:"#1e3a5f",marginBottom:4,borderBottom:"1px solid #e2e8f0",paddingBottom:4}}>Venues</div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Input:</span><b>{iVenues.size}</b></div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Output:</span><b style={{color:iVenues.size===oVenues.size?"#16a34a":"#dc2626"}}>{oVenues.size}</b></div>
+{missingV.length>0&&<div style={{color:"#dc2626",fontSize:11,marginTop:4}}>Missing: {missingV.slice(0,5).join(", ")}{missingV.length>5?` +${missingV.length-5} more`:""}</div>}
+{hasFilter&&<div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #e2e8f0",paddingTop:4,marginTop:4}}><span>Filtered:</span><b style={{color:"#2563eb"}}>{fVenues.size}</b></div>}
+</div>
+<div style={{background:"#fff",borderRadius:6,padding:8,border:"1px solid #e2e8f0"}}>
+<div style={{fontWeight:700,color:"#1e3a5f",marginBottom:4,borderBottom:"1px solid #e2e8f0",paddingBottom:4}}>Hours</div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Input total:</span><b>{fm(iHrs).toLocaleString()}</b></div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Output total:</span><b style={{color:hrsMatch?"#16a34a":"#dc2626"}}>{fm(oHrs).toLocaleString()}</b></div>
+{!hrsMatch&&<div style={{color:"#dc2626",fontSize:11,marginTop:4}}>Delta: {fm(iHrs-oHrs)} hrs unaccounted</div>}
+{hasFilter&&<div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #e2e8f0",paddingTop:4,marginTop:4}}><span>Filtered:</span><b style={{color:"#2563eb"}}>{fm(fHrs).toLocaleString()}</b></div>}
+</div>
+<div style={{background:"#fff",borderRadius:6,padding:8,border:"1px solid #e2e8f0"}}>
+<div style={{fontWeight:700,color:"#1e3a5f",marginBottom:4,borderBottom:"1px solid #e2e8f0",paddingBottom:4}}>Venue x Worker Combos</div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Input:</span><b>{iVW.size}</b></div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Output:</span><b style={{color:iVW.size===oVW.size?"#16a34a":"#dc2626"}}>{oVW.size}</b></div>
+{missingVW.length>0&&<div style={{color:"#dc2626",fontSize:11,marginTop:4}}>{missingVW.length} combos dropped</div>}
+{hasFilter&&<div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #e2e8f0",paddingTop:4,marginTop:4}}><span>Filtered:</span><b style={{color:"#2563eb"}}>{fVW.size}</b></div>}
+</div>
+<div style={{background:"#fff",borderRadius:6,padding:8,border:"1px solid #e2e8f0"}}>
+<div style={{fontWeight:700,color:"#1e3a5f",marginBottom:4,borderBottom:"1px solid #e2e8f0",paddingBottom:4}}>Coverage</div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Workers processed:</span><b>{oWorkers.size}/{iWorkers.size} ({iWorkers.size>0?Math.round(oWorkers.size/iWorkers.size*100):0}%)</b></div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Hours processed:</span><b>{iHrs>0?Math.round(oHrs/iHrs*100):0}%</b></div>
+<div style={{display:"flex",justifyContent:"space-between"}}><span>Row yield:</span><b>{inp.length>0?Math.round(proc.length/inp.length*100):0}%</b></div>
+{hasFilter&&<div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #e2e8f0",paddingTop:4,marginTop:4}}><span>Filter coverage:</span><b style={{color:"#2563eb"}}>{proc.length>0?Math.round(fRows.length/proc.length*100):0}% of processed</b></div>}
+</div>
+</div>
+{skip.length>0&&<div style={{marginTop:8,fontSize:11,color:"#64748b"}}>
+<b>Skipped rows ({skip.length}):</b> Rows without a valid Worker Name, Venue, or with #N/A venue are excluded from processing. These are typically header rows, blank rows, or placeholder entries.
+</div>}
+</div>)})()}
+
+{/* Dimension toggles */}
+<div style={{marginBottom:12}}>
+<div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>GROUP BY (click to toggle):</div>
+<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+{ANL_DIMS.map(d=><div key={d.key} onClick={()=>toggleAnlDim(d.key)} className={`badge ${anlGroupBy.includes(d.key)?"bb":"ba"}`} style={{cursor:"pointer",padding:"4px 10px",fontSize:11}}>{d.label}{anlGroupBy.includes(d.key)?" ✓":""}</div>)}
+</div>
+</div>
+{/* Filters */}
+<div style={{marginBottom:12}}>
+<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+<span style={{fontSize:12,fontWeight:600,color:"#475569"}}>FILTERS:</span>
+{Object.keys(anlFilters).length>0&&<button className="btn btn-sm btn-gray" onClick={clearAnlFilters}>Clear All</button>}
+</div>
+<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+{ANL_DIMS.map(d=><div key={d.key} style={{minWidth:130}}>
+<label style={{fontSize:10}}>{d.label}</label>
+<select style={{fontSize:11,padding:"3px 6px",width:"100%"}} value={anlFilters[d.key]?anlFilters[d.key][0]:""} onChange={e=>setAnlFilter(d.key,e.target.value)}>
+<option value="">All</option>
+{(anlData.dimVals[d.key]||[]).map(v=><option key={v} value={v}>{v}</option>)}
+</select>
+</div>)}
+</div>
+</div>
+{/* Summary stats */}
+<div className="grid6" style={{marginBottom:12}}>
+{[["Showing",anlData.filtered.length+" / "+anlData.allProc,"#2563eb"],["Groups",anlData.groups.length,"#7c3aed"],["Total Hours",fm(anlData.totals.totalHrs).toLocaleString(),"#059669"],["Base Pay","$"+fm(anlData.totals.basePay).toLocaleString(),"#16a34a"],["Premium Pay","$"+fm(anlData.totals.premPay).toLocaleString(),"#dc2626"],["Total Wages","$"+fm(anlData.totals.totalWages).toLocaleString(),"#059669"],["Weekly OT Hrs",fm(anlData.totals.wkOT).toLocaleString(),"#d97706"],["Daily OT Hrs",fm(anlData.totals.dailyOT).toLocaleString(),"#ea580c"],["FICA","$"+fm(anlData.totals.fica).toLocaleString(),"#2563eb"],["SUTA","$"+fm(anlData.totals.suta).toLocaleString(),"#7c3aed"],["WC","$"+fm(anlData.totals.wc).toLocaleString(),"#0891b2"],["Warnings",anlData.totals.warnings,anlData.totals.warnings>0?"#dc2626":"#16a34a"]].map(([l,v,c])=>
+<div key={l} className="stat" style={{borderLeft:`3px solid ${c}`,padding:"6px 10px"}}><div className="lbl" style={{fontSize:9}}>{l}</div><div className="val" style={{color:c,fontSize:14}}>{v}</div></div>)}
+</div>
+{/* Grouped results */}
+<div style={{maxHeight:600,overflow:"auto"}}>
+{anlData.groups.map((g,gi)=>{const isOpen=anlExpanded[g.key];return(
+<div key={gi} style={{marginBottom:4}}>
+<div className="grouping-header" onClick={()=>setAnlExpanded(p=>({...p,[g.key]:!p[g.key]}))} style={{borderLeftColor:g.warnings>0?"#dc2626":g.wkOT>0||g.dailyOT>0?"#d97706":"#16a34a",padding:"8px 12px"}}>
+<span className={`collapse-icon${isOpen?" open":""}`} style={{marginRight:8}}>&#9654;</span>
+{anlGroupBy.map((dim,di)=>{const d=ANL_DIMS.find(x=>x.key===dim);return<span key={dim}>{di>0&&<span style={{color:"#94a3b8",margin:"0 6px"}}>|</span>}<span className="badge bb" style={{marginRight:4,fontSize:10}}>{d?.label}</span><b>{g.parts[dim]}</b></span>})}
+<span style={{float:"right",display:"flex",gap:12,alignItems:"center",fontSize:12}}>
+<span><span className="lbl" style={{fontSize:9}}>SHIFTS</span> <b>{g.rows.length}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>HRS</span> <b>{fm(g.totalHrs)}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>BASE</span> <b style={{color:"#16a34a"}}>${fm(g.basePay)}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>PREM</span> <b style={{color:"#dc2626"}}>${fm(g.premPay)}</b></span>
+<span><span className="lbl" style={{fontSize:9}}>TOTAL</span> <b style={{color:"#059669"}}>${fm(g.totalWages)}</b></span>
+{g.wkOT>0&&<span className="badge ba" style={{fontSize:9}}>WkOT:{fm(g.wkOT)}h</span>}
+{g.dailyOT>0&&<span className="badge bp" style={{fontSize:9}}>DOT:{fm(g.dailyOT)}h</span>}
+{g.warnings>0&&<span className="badge br" style={{fontSize:9}}>{g.warnings} warn</span>}
+</span>
+</div>
+{isOpen&&<div style={{padding:"0 12px 8px",background:"#f8fafc",borderRadius:"0 0 8px 8px"}}>
+<table className="mini-table"><thead><tr><th>#</th><th>Worker</th><th>Venue</th><th>Date</th><th>Day</th><th>Start</th><th>Hours</th><th>PO</th><th>Week End</th><th>Wk Start</th><th>Method</th><th>D1 Reg</th><th>D1 OT</th><th>Wk Reg</th><th>Wk OT</th><th>Base Pay</th><th>Prem Pay</th><th>Total</th><th>Flags</th></tr></thead><tbody>
+{g.rows.map((r,ri)=><tr key={ri}>
+<td>{ri+1}</td><td>{r["Worker Name"]}</td><td>{r.Venue}</td><td>{r.A_StartDate}</td><td>{r.A_Day1_Name}</td><td>{r.A_StartHour}h</td><td style={{fontWeight:600}}>{r["*Hours"]}</td>
+<td>{r["PO Number"]||"-"}</td><td>{r["Client Week End Date"]}</td><td><span className={`badge ${r.C_WkStart==="Sunday"?"bb":"ba"}`} style={{fontSize:9}}>{r.C_WkStart}</span></td><td><span className="badge bp" style={{fontSize:9}}>{r.C_EffMethod}</span></td>
+<td>{r.D_D1Reg}</td><td className={parseFloat(r.D_D1DailyOT)>0?"wn":""}>{r.D_D1DailyOT}</td>
+<td>{r.F_WkReg}</td><td className={parseFloat(r.F_WkOT)>0?"wn":""}>{r.F_WkOT}</td>
+<td>${r.H_BasePay}</td><td style={{color:parseFloat(r.H_PremPay)>0?"#dc2626":"inherit"}}>${r.H_PremPay}</td>
+<td style={{fontWeight:700}}>${r.H_TotalCalcWages}</td>
+<td>{[r.J_SunOT&&"SunOT",r.J_SatPrem&&"SatPrem",r.J_WeeklyOT&&"WkOT",r.J_DailyOT&&"DOT",r.J_CrossesBoundary&&"Cross"].filter(Boolean).map(f=><span key={f} className={`badge ${f.includes("Sun")||f.includes("Sat")?"br":"bb"}`} style={{marginRight:2,fontSize:9}}>{f}</span>)}</td>
+</tr>)}
+</tbody>
+<tfoot><tr style={{fontWeight:700,background:"#f1f5f9"}}>
+<td colSpan={6}>Subtotal</td><td>{fm(g.totalHrs)}</td><td colSpan={4}></td><td></td><td>{fm(g.rows.reduce((s,r)=>(s+(parseFloat(r.D_D1DailyOT)||0)),0))}</td>
+<td></td><td>{fm(g.wkOT)}</td><td>${fm(g.basePay)}</td><td>${fm(g.premPay)}</td><td>${fm(g.totalWages)}</td><td></td>
+</tr></tfoot>
+</table>
+</div>}
+</div>)})}
+</div>
+{anlData.groups.length>0&&<div style={{marginTop:8,padding:"10px 12px",background:"#1e3a5f",borderRadius:8,color:"#fff",display:"flex",justifyContent:"space-between",fontSize:12}}>
+<span><b>Grand Total</b> ({anlData.filtered.length} shifts across {anlData.groups.length} groups)</span>
+<span style={{display:"flex",gap:16}}>
+<span>Hours: <b>{fm(anlData.totals.totalHrs)}</b></span>
+<span>Base: <b>${fm(anlData.totals.basePay)}</b></span>
+<span>Premium: <b>${fm(anlData.totals.premPay)}</b></span>
+<span>Total: <b>${fm(anlData.totals.totalWages)}</b></span>
+<span>Tax Burden: <b>${fm(anlData.totals.fica+anlData.totals.suta+anlData.totals.wc)}</b></span>
+</span>
+</div>}
+</div>}
+
 {mainTab==="venue"&&<div className="tw" style={{maxHeight:500}}><table><thead><tr><th>Venue</th><th>Week Start</th><th>Hour Method</th><th>Sun OT</th><th>Sat Prem</th><th>Unpaid Lunch</th></tr></thead><tbody>
 {Object.entries(VC).sort(([a],[b])=>a.localeCompare(b)).map(([n,c])=><tr key={n}><td style={{fontWeight:600}}>{n}</td><td><span className={`badge ${c.w==="Sunday"?"bb":"ba"}`}>{c.w}</span></td><td>{c.hm}{n==="Neenah"?" (dynamic)":""}</td><td className={c.so?"wn":""}>{c.so?"YES":"No"}</td><td className={c.sp?"wn":""}>{c.sp?c.sp+"x":"-"}</td><td className={c.ul?"wn":""}>{c.ul?"YES":"-"}</td></tr>)}
 </tbody></table></div>}
@@ -667,7 +1017,7 @@ return(<div key={i} style={{marginBottom:4}}>
 </div>}
 </>}
 
-<div className="foot">Amcor Invoice Calculation Engine v2 | 158/158 tests passed | 36 venues | 65 flex fields | 10-stage pipeline</div>
+<div className="foot">Amcor Invoice Calculation Engine v2 | 36 venues | 65 flex fields | 10-stage pipeline | Invoice generation</div>
 </div>)}
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
