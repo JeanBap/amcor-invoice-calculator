@@ -18,16 +18,20 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e
 .card{background:#fff;border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .card h2{font-size:15px;font-weight:600;color:#1e3a5f;margin-bottom:12px}
 .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
 .grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 label{display:block;font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
-select{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:#fff}
+select,input[type=text],input[type=number]{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:#fff}
 .btn{padding:9px 22px;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:all .15s}
 .btn-blue{background:#2563eb;color:#fff}.btn-blue:hover{background:#1d4ed8}
 .btn-green{background:#16a34a;color:#fff}.btn-green:hover{background:#15803d}
 .btn-gray{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}.btn-gray:hover{background:#e2e8f0}
+.btn-red{background:#dc2626;color:#fff}.btn-red:hover{background:#b91c1c}
+.btn-purple{background:#7c3aed;color:#fff}.btn-purple:hover{background:#6d28d9}
+.btn-amber{background:#d97706;color:#fff}.btn-amber:hover{background:#b45309}
 .btn-sm{padding:5px 12px;font-size:11px}
 .badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700}
-.bg{background:#dcfce7;color:#166534}.bb{background:#dbeafe;color:#1e40af}.ba{background:#fef3c7;color:#92400e}.br{background:#fee2e2;color:#991b1b}
+.bg{background:#dcfce7;color:#166534}.bb{background:#dbeafe;color:#1e40af}.ba{background:#fef3c7;color:#92400e}.br{background:#fee2e2;color:#991b1b}.bp{background:#f3e8ff;color:#6b21a8}
 .drop{border:2px dashed #94a3b8;border-radius:12px;padding:36px;text-align:center;cursor:pointer;transition:all .2s}
 .drop:hover,.drop.active{border-color:#2563eb;background:#eff6ff}
 .stat{background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
@@ -42,16 +46,35 @@ tr:nth-child(even) td{background:#f8fafc}
 .wn{background:#fee2e2!important;color:#991b1b;font-weight:600}
 .inf{background:#dbeafe!important;color:#1e40af}
 .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
-.tabs{display:flex;gap:4px;margin-bottom:12px}
-.tab{padding:6px 14px;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #e2e8f0;border-bottom:none;background:#f8fafc;color:#64748b}
-.tab.active{background:#fff;color:#1e3a5f;border-color:#cbd5e1}
+.tab-bar{display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:0}
+.tab-btn{padding:10px 20px;cursor:pointer;font-weight:600;font-size:13px;border:none;background:transparent;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab-btn.active{color:#1e3a5f;border-bottom-color:#2563eb}
+.tab-btn:hover{color:#1e3a5f}
 .foot{margin-top:28px;padding:14px;text-align:center;color:#94a3b8;font-size:11px;border-top:1px solid #e2e8f0}
+.audit-toggle{display:flex;align-items:center;gap:10px;margin:20px 0}
+.toggle-track{width:48px;height:26px;background:#cbd5e1;border-radius:13px;position:relative;cursor:pointer;transition:.2s}
+.toggle-track.on{background:#2563eb}
+.toggle-knob{width:22px;height:22px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-track.on .toggle-knob{left:24px}
+.mini-table{width:100%;border-collapse:collapse;font-size:12px}
+.mini-table th{background:#f1f5f9;padding:8px 10px;text-align:left;font-weight:600;color:#475569;border-bottom:2px solid #e2e8f0}
+.mini-table td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
+.mini-table tr:hover td{background:#eff6ff}
+.field-map-row{display:grid;grid-template-columns:1fr 20px 1fr;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9}
+.field-map-arrow{color:#94a3b8;text-align:center;font-size:16px}
+.venue-edit-row{display:grid;grid-template-columns:150px 120px 140px 80px 100px 80px 80px 60px;gap:6px;padding:4px 0;border-bottom:1px solid #f1f5f9;align-items:center;font-size:12px}
+.venue-edit-row select,.venue-edit-row input{padding:4px 6px;font-size:11px;border:1px solid #e2e8f0;border-radius:4px}
+.section-divider{height:3px;background:linear-gradient(90deg,#2563eb,#7c3aed);border-radius:2px;margin:24px 0}
+.validation-pass{color:#16a34a;font-weight:600}.validation-fail{color:#dc2626;font-weight:600}.validation-warn{color:#d97706;font-weight:600}
+.grouping-header{background:#f8fafc;padding:12px 16px;border-radius:8px;margin-bottom:8px;border-left:3px solid #2563eb;cursor:pointer}
+.grouping-header:hover{background:#eff6ff}
+.collapse-icon{transition:.2s;display:inline-block}.collapse-icon.open{transform:rotate(90deg)}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-// ═══ ENGINE ═══
+// ═══ ENGINE (same as v1) ═══
 const R={FICA:7.65,FUTA:.6,WC_D:4.4,OTM:1.5,DOT:8};
 const SUTA_ES={"72_OH":6,"72_TN":2.7,"72_GA":2.7,"72_PA":8.017,"72_IA":1,"72_WI":3.05,"72_MN":1,"72_OK":1.5,"72_MO":2.376,"72_AR":3.1,"72_IN":2.5,"72_IL":6.779,"72_TX":2.06,"72_LA":1.27,"72_CA":3.4,"72_NC":1,"72_AZ":2,"72_ID":1.326};
 const SUTA_F={AZ:2.7,CA:1.995,GA:2.7,IA:1,ID:1.326,IL:6.779,IN:2.5,LA:1.27,MN:1,MO:2.376,NC:1,OH:6,OK:1.5,PA:8.017,TN:2.7,TX:2.06,WI:3.05,AR:3.1};
@@ -61,6 +84,33 @@ function lWC(r,s){return WC_RS[`${r}_${s}`]||R.WC_D}
 const VC={"ACF":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Appleton":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"ASF":{w:"Sunday",ot:40,so:true,sp:null,hm:"standard",dd:0,ul:false},"Asheville":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Batavia":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Boscobel":{w:"Monday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false},"Centerville":{w:"Sunday",ot:40,so:true,sp:null,hm:"standard",dd:0,ul:false},"Commerce":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Des Moines":{w:"Monday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false},"Edgewood":{w:"Monday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false},"Fremont":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Graphics":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Hazleton":{w:"Sunday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false},"Joplin":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Lancaster":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Lebanon":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Lenexa":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Little Chute":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Madison":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Mankato":{w:"Monday",ot:40,so:false,sp:1.5,hm:"standard",dd:0,ul:false},"Mundelein":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Neenah":{w:"Monday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false,dyn:true},"New London Food":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"New London HC":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"NIC HRLY":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Oshkosh HC":{w:"Sunday",ot:40,so:true,sp:null,hm:"standard",dd:0,ul:false},"Oshkosh North":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Pauls Valley":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"RED":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Russellville":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:true},"Shelbyville":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Shelbyville HC":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"South":{w:"Sunday",ot:40,so:true,sp:null,hm:"standard",dd:0,ul:false},"Terre Haute":{w:"Monday",ot:40,so:false,sp:null,hm:"scheduled_out",dd:0,ul:false},"West Monroe":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Yuba City":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false}};
 const DV={w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false};
 const DN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+// 65 Flex Field Definitions
+const FLEX_FIELDS=[
+{key:"Worker Name",cat:"Worker",req:true},{key:"Worker State",cat:"Worker",req:true},{key:"Employer ID",cat:"Worker",req:false},
+{key:"NS_Role",cat:"Worker",req:false},{key:"Venue",cat:"Shift",req:true},{key:"Shift Start Time",cat:"Shift",req:true},
+{key:"*Hours",cat:"Shift",req:true},{key:"Pay Rate",cat:"Shift",req:true},{key:"Rate Type",cat:"Shift",req:false},
+{key:"Client Week End Date",cat:"Shift",req:true},{key:"Workweek",cat:"Shift",req:false},{key:"Paid Break?",cat:"Shift",req:false},
+{key:"National Insurance %",cat:"Rates",req:false},{key:"Flex Fee %",cat:"Rates",req:false},{key:"Total Markup %",cat:"Rates",req:false},
+{key:"*UnitAmount",cat:"Rates",req:false},{key:"SiteLabel",cat:"Meta",req:false},{key:"Buyer",cat:"Meta",req:false},
+{key:"Supplier",cat:"Meta",req:false},{key:"Job Title",cat:"Meta",req:false},{key:"Department",cat:"Meta",req:false},
+{key:"Cost Center",cat:"Meta",req:false},{key:"PO Number",cat:"Meta",req:false},{key:"Invoice Number",cat:"Meta",req:false},
+{key:"Timesheet ID",cat:"Meta",req:false},{key:"Assignment ID",cat:"Meta",req:false},{key:"Requisition ID",cat:"Meta",req:false},
+{key:"Worker ID",cat:"Meta",req:false},{key:"Expense Code",cat:"Meta",req:false},{key:"GL Code",cat:"Meta",req:false},
+{key:"Bill To",cat:"Meta",req:false},{key:"Ship To",cat:"Meta",req:false},{key:"Currency",cat:"Meta",req:false},
+{key:"Payment Terms",cat:"Meta",req:false},{key:"Tax Code",cat:"Meta",req:false},{key:"Project Code",cat:"Meta",req:false},
+{key:"Task Code",cat:"Meta",req:false},{key:"Activity Code",cat:"Meta",req:false},{key:"Approval Status",cat:"Meta",req:false},
+{key:"Approved By",cat:"Meta",req:false},{key:"Approved Date",cat:"Meta",req:false},{key:"Submitted Date",cat:"Meta",req:false},
+{key:"Period Start",cat:"Meta",req:false},{key:"Period End",cat:"Meta",req:false},{key:"OT Eligible",cat:"Meta",req:false},
+{key:"Shift Differential",cat:"Meta",req:false},{key:"Per Diem",cat:"Meta",req:false},{key:"Travel",cat:"Meta",req:false},
+{key:"Reimbursement",cat:"Meta",req:false},{key:"Bonus",cat:"Meta",req:false},{key:"Holiday Pay",cat:"Meta",req:false},
+{key:"Sick Pay",cat:"Meta",req:false},{key:"Vacation Pay",cat:"Meta",req:false},{key:"Commission",cat:"Meta",req:false},
+{key:"Adjustment",cat:"Meta",req:false},{key:"Credit Memo",cat:"Meta",req:false},{key:"Debit Memo",cat:"Meta",req:false},
+{key:"Notes",cat:"Meta",req:false},{key:"Custom1",cat:"Custom",req:false},{key:"Custom2",cat:"Custom",req:false},
+{key:"Custom3",cat:"Custom",req:false},{key:"Custom4",cat:"Custom",req:false},{key:"Custom5",cat:"Custom",req:false},
+{key:"Custom6",cat:"Custom",req:false},{key:"Custom7",cat:"Custom",req:false}
+];
+
 function lkV(v){const k=v.trim();if(VC[k])return{...VC[k]};const l=k.toLowerCase();for(const[n,c]of Object.entries(VC))if(n.toLowerCase()===l)return{...c};return null}
 function rsV(c,v,h,o){const r={...c};const l=v.trim().toLowerCase();
 if(l==="hazleton"&&o.hazletonDayDivideHour!==undefined)r.dd=o.hazletonDayDivideHour;
@@ -104,39 +154,118 @@ return o}
 function pAll(rows,op){const pr=new Map();return rows.map(r=>pRow(r,pr,op))}
 
 const CC=["A_StartDate","A_StartHour","A_Day1_WD","A_Day1_Name","A_Day2_WD","A_Day2_Name","B_DayDivideHour","B_HrsToBoundary","B_Day1Hrs","B_Day2Hrs","C_WkStart","C_SunOT","C_SatPrem","C_HrMethod","C_EffMethod","C_UnpaidLunch","D_D1Reg","D_D1DailyOT","D_D1Sun","D_D1Sat","E_D2Reg","E_D2DailyOT","E_D2Sun","E_D2Sat","F_WkKey","F_PriorHrs","F_Cumul","F_WkReg","F_WkOT","G_SunHrs","G_SatHrs","G_EffSunHrs","G_EffSatHrs","G_SunPrem","G_SatRegOnly","G_DOTinWkReg","G_SatPremHrs","H_BaseHrs","H_PremHrs","H_BasePay","H_PremPay","H_TotalCalcWages","I_FICA","I_FUTA","I_SUTA","I_SUTA_Rate","I_WC","I_WC_Rate","I_EmpLiability","I_FlexFee","I_OneLineRate","I_OneLineTotal","J_SunOT","J_SatPrem","J_UnpaidLunch","J_WeeklyOT","J_DailyOT","J_CrossesBoundary","J_WWMismatch"];
-
 const KEY_COLS=["Venue","Worker Name","*Hours","Pay Rate","Shift Start Time","A_StartDate","A_Day1_Name","A_Day2_Name","B_DayDivideHour","B_Day1Hrs","B_Day2Hrs","C_EffMethod","C_SunOT","C_WkStart","D_D1Reg","D_D1DailyOT","E_D2Reg","E_D2DailyOT","F_WkReg","F_WkOT","G_EffSunHrs","G_EffSatHrs","G_SunPrem","G_SatPremHrs","H_BaseHrs","H_PremHrs","H_BasePay","H_PremPay","H_TotalCalcWages","I_FICA","I_SUTA","I_WC","J_SunOT","J_SatPrem","J_DailyOT","J_WeeklyOT","J_CrossesBoundary"];
 
+// ═══ AUDIT HELPERS ═══
+function getValidation(rows,res){
+const issues=[];const proc=res.filter(r=>r.A_StartDate);
+rows.forEach((r,i)=>{const v=r["Venue"]||"",w=r["Worker Name"]||"",h=r["*Hours"],p=r["Pay Rate"],s=r["Shift Start Time"]||"";
+const ri=[];
+if(!w.trim())ri.push({field:"Worker Name",sev:"error",msg:"Missing"});
+if(!v.trim()||v==="#N/A")ri.push({field:"Venue",sev:"error",msg:v==="#N/A"?"#N/A value":"Missing"});
+else if(!lkV(v))ri.push({field:"Venue",sev:"warn",msg:"Unknown venue: "+v});
+if(!h||sf(h)<=0)ri.push({field:"*Hours",sev:"error",msg:"Missing or zero"});
+if(!p||sf(p)<=0)ri.push({field:"Pay Rate",sev:"warn",msg:"Missing or zero"});
+if(!s.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))ri.push({field:"Shift Start Time",sev:"error",msg:"Invalid format"});
+if(ri.length>0)issues.push({row:i+2,worker:w,venue:v,issues:ri});
+});
+proc.forEach((r,i)=>{
+const ri=[];
+if(r.J_SunOT==="WARNING")ri.push({field:"Sunday OT",sev:"warn",msg:"Sunday hours at OT venue"});
+if(r.J_SatPrem==="WARNING")ri.push({field:"Saturday Premium",sev:"warn",msg:"Saturday hours at premium venue"});
+if(r.J_WWMismatch==="WARNING")ri.push({field:"Workweek",sev:"warn",msg:"Workweek mismatch with venue config"});
+if(r.J_UnpaidLunch==="WARNING")ri.push({field:"Unpaid Lunch",sev:"warn",msg:"Venue has unpaid lunch deduction"});
+if(ri.length>0)issues.push({row:i+2,worker:r["Worker Name"],venue:r["Venue"],issues:ri});
+});
+return issues}
+
+function getInputSummary(rows){
+const workers=new Set(),venues=new Set(),states=new Set(),dates=[];
+let totalHrs=0,totalRows=rows.length,skipRows=0;
+rows.forEach(r=>{
+const v=(r["Venue"]||"").trim(),w=(r["Worker Name"]||"").trim();
+if(!w||!v||v==="#N/A"){skipRows++;return}
+workers.add(w);venues.add(v);states.add(r["Worker State"]||"");
+totalHrs+=sf(r["*Hours"]);
+const d=r["Shift Start Time"]||"";if(d)dates.push(d.substring(0,10));
+});
+dates.sort();
+return{totalRows,skipRows,procRows:totalRows-skipRows,workers:workers.size,venues:venues.size,states:states.size,totalHrs:fm(totalHrs),dateRange:dates.length?`${dates[0]} to ${dates[dates.length-1]}`:"N/A",workerList:[...workers].sort(),venueList:[...venues].sort(),stateList:[...states].sort()}
+}
+
+function getOutputSummary(res){
+const proc=res.filter(r=>r.A_StartDate);
+let tw=0,fica=0,futa=0,suta=0,wc=0,baseHrs=0,premHrs=0,wkOT=0,dailyOT=0;
+const byVenue={},byWorker={};
+proc.forEach(r=>{
+const w=fm(parseFloat(r.H_TotalCalcWages)||0);
+tw+=w;fica+=parseFloat(r.I_FICA)||0;futa+=parseFloat(r.I_FUTA)||0;suta+=parseFloat(r.I_SUTA)||0;wc+=parseFloat(r.I_WC)||0;
+baseHrs+=parseFloat(r.H_BaseHrs)||0;premHrs+=parseFloat(r.H_PremHrs)||0;
+wkOT+=parseFloat(r.F_WkOT)||0;dailyOT+=parseFloat(r.D_D1DailyOT)||0;dailyOT+=parseFloat(r.E_D2DailyOT)||0;
+const v=r.Venue||"Unknown";byVenue[v]=(byVenue[v]||0)+w;
+const wn=r["Worker Name"]||"Unknown";byWorker[wn]=(byWorker[wn]||0)+w;
+});
+return{rows:proc.length,totalWages:fm(tw),fica:fm(fica),futa:fm(futa),suta:fm(suta),wc:fm(wc),baseHrs:fm(baseHrs),premHrs:fm(premHrs),wkOT:fm(wkOT),dailyOT:fm(dailyOT),
+byVenue:Object.entries(byVenue).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({name:k,wages:fm(v)})),
+byWorker:Object.entries(byWorker).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({name:k,wages:fm(v)}))}}
+
+function getGrouping(res){
+const groups={};const proc=res.filter(r=>r.A_StartDate);
+proc.forEach(r=>{
+const key=`${r["Worker Name"]}|${r.Venue}|${r["Client Week End Date"]}`;
+if(!groups[key])groups[key]={worker:r["Worker Name"],venue:r.Venue,weekEnd:r["Client Week End Date"],shifts:[],totalHrs:0,totalWages:0};
+groups[key].shifts.push(r);groups[key].totalHrs+=sf(r["*Hours"]);groups[key].totalWages+=parseFloat(r.H_TotalCalcWages)||0;
+});
+return Object.values(groups).sort((a,b)=>a.worker.localeCompare(b.worker)||a.venue.localeCompare(b.venue))}
+
 // ═══ APP ═══
-const {useState,useRef,useCallback}=React;
+const {useState,useRef,useCallback,useMemo}=React;
 
 function App(){
 const[raw,setRaw]=useState(null);const[res,setRes]=useState(null);const[ic,setIc]=useState([]);
 const[op,setOp]=useState({hazletonDayDivideHour:0,neenahShiftType:"auto",bataviaPayGroup:"24x7"});
 const[all,setAll]=useState(false);const[drag,setDrag]=useState(false);const[fn,setFn]=useState("");const[stats,setStats]=useState(null);
-const[tab,setTab]=useState("calc");const fr=useRef();
+const[mainTab,setMainTab]=useState("calc");const fr=useRef();
+const[audit,setAudit]=useState(false);const[auditTab,setAuditTab]=useState("validation");
+const[fieldMap,setFieldMap]=useState({});const[openGroups,setOpenGroups]=useState({});
+const[editVC,setEditVC]=useState(()=>JSON.parse(JSON.stringify(VC)));
 
-const hFile=useCallback(f=>{if(!f)return;setFn(f.name);const r=new FileReader();r.onload=e=>{const p=Papa.parse(e.target.result,{header:true,skipEmptyLines:true});setRaw(p.data);setIc(p.meta.fields||[]);setRes(null);setStats(null)};r.readAsText(f)},[]);
+const hFile=useCallback(f=>{if(!f)return;setFn(f.name);const r=new FileReader();r.onload=e=>{const p=Papa.parse(e.target.result,{header:true,skipEmptyLines:true});setRaw(p.data);setIc(p.meta.fields||[]);setRes(null);setStats(null);
+// Auto-map fields
+const m={};const cols=p.meta.fields||[];
+FLEX_FIELDS.forEach(ff=>{const exact=cols.find(c=>c===ff.key);if(exact){m[ff.key]=exact;return}
+const lower=cols.find(c=>c.toLowerCase()===ff.key.toLowerCase());if(lower)m[ff.key]=lower;});
+setFieldMap(m);
+};r.readAsText(f)},[]);
 
 const run=()=>{if(!raw)return;const r=pAll(raw,op);setRes(r);const proc=r.filter(x=>x.A_StartDate);const sk=r.length-proc.length;
 const vs=[...new Set(proc.map(x=>x.Venue))].sort();const tw=proc.reduce((s,x)=>s+(parseFloat(x.H_TotalCalcWages)||0),0);
 const wn=proc.filter(x=>x.J_SunOT||x.J_SatPrem||x.J_UnpaidLunch||x.J_WWMismatch).length;
-setStats({total:r.length,proc:proc.length,skip:sk,vs,tw:tw.toFixed(2),wn});setTab("calc")};
+setStats({total:r.length,proc:proc.length,skip:sk,vs,tw:tw.toFixed(2),wn});setMainTab("calc")};
 
 const dl=()=>{if(!res)return;const ac=[...ic,...CC];const h=ac.join(",");const rs=res.map(r=>ac.map(c=>{const v=String(r[c]||"");return v.includes(",")?`"${v}"`:v}).join(","));
 const csv=[h,...rs].join("\n");const b=new Blob([csv],{type:"text/csv"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="Amcor_Calculated_Output.csv";a.click();URL.revokeObjectURL(u)};
 
+const validation=useMemo(()=>raw&&res?getValidation(raw,res):null,[raw,res]);
+const inputSum=useMemo(()=>raw?getInputSummary(raw):null,[raw]);
+const outputSum=useMemo(()=>res?getOutputSummary(res):null,[res]);
+const grouping=useMemo(()=>res?getGrouping(res):null,[res]);
+
 const dc=all?[...ic,...CC]:KEY_COLS;const dr=res?res.filter(r=>r.A_StartDate):[];
 
-return(<div className="container">
-<div className="header"><h1>Amcor Invoice Calculation Engine v2</h1><p>Upload timesheet CSV / Configure venue options / Run 10-stage pipeline / Download results | 36 venues | 158 tests passed</p></div>
+const toggleGroup=(k)=>setOpenGroups(p=>({...p,[k]:!p[k]}));
 
-<div className="drop" className={`drop${drag?" active":""}`} onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);hFile(e.dataTransfer.files[0])}} onClick={()=>fr.current?.click()}>
+return(<div className="container">
+<div className="header"><h1>Amcor Invoice Calculation Engine v2</h1><p>Upload timesheet CSV | Configure venue options | Run 10-stage pipeline | Download results | 36 venues | 65 flex fields</p></div>
+
+{/* FILE UPLOAD */}
+<div className={`drop${drag?" active":""}`} onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);hFile(e.dataTransfer.files[0])}} onClick={()=>fr.current?.click()}>
 <input ref={fr} type="file" accept=".csv" style={{display:"none"}} onChange={e=>hFile(e.target.files[0])} />
-{fn?<div><span className="badge bg">{fn}</span> <span style={{color:"#64748b",marginLeft:8}}>{raw?.length} rows loaded</span></div>
+{fn?<div><span className="badge bg">{fn}</span> <span style={{color:"#64748b",marginLeft:8}}>{raw?.length} rows loaded</span>{inputSum&&<span style={{color:"#64748b",marginLeft:8}}>| {inputSum.workers} workers | {inputSum.venues} venues</span>}</div>
 :<div style={{color:"#64748b"}}><div style={{fontSize:28,marginBottom:6}}>+</div><b>Drop CSV file here or click to browse</b><br/><span style={{fontSize:11}}>Supports Amcor timesheet CSV exports</span></div>}
 </div>
 
+{/* PROCESSING OPTIONS */}
 {raw&&<div className="card">
 <h2>Processing Options</h2>
 <div className="grid3">
@@ -151,34 +280,216 @@ return(<div className="container">
 </div>
 </div>}
 
+{/* STATS BAR */}
 {stats&&<div className="grid6" style={{marginBottom:16}}>
 {[["Rows",stats.total,"#2563eb"],["Processed",stats.proc,"#16a34a"],["Skipped",stats.skip,"#94a3b8"],["Venues",stats.vs.length,"#7c3aed"],["Total Wages","$"+Number(stats.tw).toLocaleString(),"#059669"],["Warnings",stats.wn,stats.wn>0?"#dc2626":"#16a34a"]].map(([l,v,c])=>
 <div key={l} className="stat" style={{borderLeft:`3px solid ${c}`}}><div className="lbl">{l}</div><div className="val" style={{color:c}}>{v}</div></div>)}
 </div>}
 
+{/* MAIN RESULTS */}
 {res&&<div className="card" style={{padding:0,overflow:"hidden"}}>
-<div style={{display:"flex",borderBottom:"1px solid #e2e8f0"}}>
-<div className={`tab${tab==="calc"?" active":""}`} onClick={()=>setTab("calc")} style={{padding:"10px 20px",cursor:"pointer",fontWeight:600,fontSize:13,borderBottom:tab==="calc"?"2px solid #2563eb":"2px solid transparent",color:tab==="calc"?"#1e3a5f":"#94a3b8"}}>Calculated Results</div>
-<div className={`tab${tab==="venue"?" active":""}`} onClick={()=>setTab("venue")} style={{padding:"10px 20px",cursor:"pointer",fontWeight:600,fontSize:13,borderBottom:tab==="venue"?"2px solid #2563eb":"2px solid transparent",color:tab==="venue"?"#1e3a5f":"#94a3b8"}}>Venue Reference</div>
+<div className="tab-bar">
+<div className={`tab-btn${mainTab==="calc"?" active":""}`} onClick={()=>setMainTab("calc")}>Calculated Results</div>
+<div className={`tab-btn${mainTab==="venue"?" active":""}`} onClick={()=>setMainTab("venue")}>Venue Reference</div>
 </div>
-{tab==="calc"&&<div className="tw"><table><thead><tr>{dc.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>
+{mainTab==="calc"&&<div className="tw"><table><thead><tr>{dc.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>
 {dr.map((r,i)=><tr key={i}>{dc.map(c=>{const v=r[c],s=String(v||"");let cl=CC.includes(c)?"cc":"";if(s.includes("WARNING"))cl="wn";else if(s.includes("INFO"))cl="inf";return<td key={c} className={cl}>{s}</td>})}</tr>)}
 </tbody></table></div>}
-{tab==="venue"&&<div className="tw" style={{maxHeight:500}}><table><thead><tr><th>Venue</th><th>Week Start</th><th>Hour Method</th><th>Sun OT</th><th>Sat Prem</th><th>Unpaid Lunch</th></tr></thead><tbody>
+{mainTab==="venue"&&<div className="tw" style={{maxHeight:500}}><table><thead><tr><th>Venue</th><th>Week Start</th><th>Hour Method</th><th>Sun OT</th><th>Sat Prem</th><th>Unpaid Lunch</th></tr></thead><tbody>
 {Object.entries(VC).sort(([a],[b])=>a.localeCompare(b)).map(([n,c])=><tr key={n}><td style={{fontWeight:600}}>{n}</td><td><span className={`badge ${c.w==="Sunday"?"bb":"ba"}`}>{c.w}</span></td><td>{c.hm}{n==="Neenah"?" (dynamic)":""}</td><td className={c.so?"wn":""}>{c.so?"YES":"No"}</td><td className={c.sp?"wn":""}>{c.sp?c.sp+"x":"-"}</td><td className={c.ul?"wn":""}>{c.ul?"YES":"-"}</td></tr>)}
 </tbody></table></div>}
-{tab==="calc"&&<div style={{padding:"8px 16px",fontSize:11,color:"#94a3b8",borderTop:"1px solid #f1f5f9"}}>{dr.length} rows, {dc.length} columns {all?"(all)":"(key)"}</div>}
+{mainTab==="calc"&&<div style={{padding:"8px 16px",fontSize:11,color:"#94a3b8",borderTop:"1px solid #f1f5f9"}}>{dr.length} rows, {dc.length} columns {all?"(all)":"(key)"}</div>}
 </div>}
 
+{/* LANDING */}
 {!res&&!raw&&<div className="card" style={{textAlign:"center",padding:40}}>
 <h2 style={{fontSize:20,marginBottom:8}}>Get Started</h2>
-<p style={{color:"#64748b",maxWidth:500,margin:"0 auto"}}>Upload a timesheet CSV to run the 10-stage invoice calculation pipeline. Configure Hazleton, Neenah, and Batavia options before processing. Download results as CSV when done.</p>
+<p style={{color:"#64748b",maxWidth:500,margin:"0 auto"}}>Upload a timesheet CSV to run the 10-stage invoice calculation pipeline. Configure Hazleton, Neenah, and Batavia options before processing.</p>
 <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
-{["36 Venues","Daily OT >8hrs","Weekly OT >40hrs","Sunday/Saturday Premiums","Midnight Split","Tax Calculations"].map(t=><span key={t} className="badge bb">{t}</span>)}
+{["36 Venues","65 Fields","Daily OT >8hrs","Weekly OT >40hrs","Sunday/Saturday Premiums","Tax Calculations"].map(t=><span key={t} className="badge bb">{t}</span>)}
 </div>
 </div>}
 
-<div className="foot">Amcor Invoice Calculation Engine v2 | 158/158 tests passed | 36 venues configured | 10-stage pipeline</div>
+{/* ═══ AUDIT TOGGLE ═══ */}
+{res&&<>
+<div className="section-divider"></div>
+<div className="audit-toggle">
+<div className={`toggle-track${audit?" on":""}`} onClick={()=>setAudit(!audit)}>
+<div className="toggle-knob"></div>
+</div>
+<span style={{fontWeight:600,fontSize:15,color:audit?"#2563eb":"#64748b"}}>Audit Panel</span>
+<span style={{fontSize:12,color:"#94a3b8"}}>{audit?"Showing detailed audit, validation, grouping, and field mapping":"Click to expand audit tools"}</span>
+</div>
+
+{audit&&<div style={{animation:"fadeIn .3s ease"}}>
+{/* AUDIT TABS */}
+<div className="tab-bar" style={{marginBottom:16}}>
+<div className={`tab-btn${auditTab==="validation"?" active":""}`} onClick={()=>setAuditTab("validation")}>Validation</div>
+<div className={`tab-btn${auditTab==="input"?" active":""}`} onClick={()=>setAuditTab("input")}>Input Summary</div>
+<div className={`tab-btn${auditTab==="output"?" active":""}`} onClick={()=>setAuditTab("output")}>Output Summary</div>
+<div className={`tab-btn${auditTab==="grouping"?" active":""}`} onClick={()=>setAuditTab("grouping")}>Invoice Grouping</div>
+<div className={`tab-btn${auditTab==="mapping"?" active":""}`} onClick={()=>setAuditTab("mapping")}>Field Mapping</div>
+<div className={`tab-btn${auditTab==="venueEdit"?" active":""}`} onClick={()=>setAuditTab("venueEdit")}>Venue Config</div>
+<div className={`tab-btn${auditTab==="rules"?" active":""}`} onClick={()=>setAuditTab("rules")}>Rules Docs</div>
+<div className={`tab-btn${auditTab==="daily"?" active":""}`} onClick={()=>setAuditTab("daily")}>Daily Breakdown</div>
+</div>
+
+{/* VALIDATION */}
+{auditTab==="validation"&&<div className="card">
+<h2>Data Validation Report</h2>
+{validation&&validation.length===0&&<div style={{padding:20,textAlign:"center"}}><span className="badge bg" style={{fontSize:14,padding:"8px 16px"}}>All rows passed validation</span></div>}
+{validation&&validation.length>0&&<>
+<div style={{marginBottom:12}}><span className="badge br">{validation.length} rows with issues</span> <span className="badge bg">{(raw?.length||0)-validation.length} clean rows</span></div>
+<div className="tw" style={{maxHeight:400}}><table className="mini-table"><thead><tr><th>Row</th><th>Worker</th><th>Venue</th><th>Field</th><th>Severity</th><th>Issue</th></tr></thead><tbody>
+{validation.flatMap((v,vi)=>v.issues.map((iss,ii)=><tr key={`${vi}-${ii}`}><td>{v.row}</td><td>{v.worker||"-"}</td><td>{v.venue||"-"}</td><td style={{fontWeight:600}}>{iss.field}</td><td><span className={`badge ${iss.sev==="error"?"br":"ba"}`}>{iss.sev}</span></td><td>{iss.msg}</td></tr>))}
+</tbody></table></div></>}
+</div>}
+
+{/* INPUT SUMMARY */}
+{auditTab==="input"&&inputSum&&<div className="card">
+<h2>Input Data Summary</h2>
+<div className="grid4" style={{marginBottom:20}}>
+{[["Total Rows",inputSum.totalRows,"#2563eb"],["Processed",inputSum.procRows,"#16a34a"],["Skipped",inputSum.skipRows,"#ef4444"],["Workers",inputSum.workers,"#7c3aed"],["Venues",inputSum.venues,"#0891b2"],["States",inputSum.states,"#d97706"],["Total Hours",inputSum.totalHrs.toLocaleString(),"#059669"],["Date Range",inputSum.dateRange,"#64748b"]].map(([l,v,c])=>
+<div key={l} className="stat" style={{borderLeft:`3px solid ${c}`}}><div className="lbl">{l}</div><div className="val" style={{color:c,fontSize:v.toString().length>12?12:18}}>{v}</div></div>)}
+</div>
+<div className="grid3">
+<div><h2>Workers ({inputSum.workers})</h2><div style={{maxHeight:200,overflow:"auto",fontSize:12}}>{inputSum.workerList.map(w=><div key={w} style={{padding:"2px 0",borderBottom:"1px solid #f1f5f9"}}>{w}</div>)}</div></div>
+<div><h2>Venues ({inputSum.venues})</h2><div style={{maxHeight:200,overflow:"auto",fontSize:12}}>{inputSum.venueList.map(v=><div key={v} style={{padding:"2px 0",borderBottom:"1px solid #f1f5f9"}}><span className="badge bb">{v}</span></div>)}</div></div>
+<div><h2>States ({inputSum.states})</h2><div style={{maxHeight:200,overflow:"auto",fontSize:12}}>{inputSum.stateList.filter(s=>s).map(s=><div key={s} style={{padding:"2px 0",borderBottom:"1px solid #f1f5f9"}}><span className="badge ba">{s}</span></div>)}</div></div>
+</div>
+</div>}
+
+{/* OUTPUT SUMMARY */}
+{auditTab==="output"&&outputSum&&<div className="card">
+<h2>Calculation Output Summary</h2>
+<div className="grid4" style={{marginBottom:20}}>
+{[["Total Wages","$"+outputSum.totalWages.toLocaleString(),"#059669"],["FICA","$"+outputSum.fica.toLocaleString(),"#2563eb"],["FUTA","$"+outputSum.futa.toLocaleString(),"#7c3aed"],["SUTA","$"+outputSum.suta.toLocaleString(),"#0891b2"],["WC","$"+outputSum.wc.toLocaleString(),"#d97706"],["Base Hours",outputSum.baseHrs.toLocaleString(),"#16a34a"],["Premium Hours",outputSum.premHrs.toLocaleString(),"#dc2626"],["Weekly OT Hrs",outputSum.wkOT.toLocaleString(),"#ea580c"]].map(([l,v,c])=>
+<div key={l} className="stat" style={{borderLeft:`3px solid ${c}`}}><div className="lbl">{l}</div><div className="val" style={{color:c,fontSize:14}}>{v}</div></div>)}
+</div>
+<div className="grid3">
+<div><h2>By Venue (Top)</h2><div style={{maxHeight:250,overflow:"auto"}}><table className="mini-table"><thead><tr><th>Venue</th><th style={{textAlign:"right"}}>Wages</th></tr></thead><tbody>
+{outputSum.byVenue.slice(0,20).map(v=><tr key={v.name}><td>{v.name}</td><td style={{textAlign:"right",fontWeight:600}}>${v.wages.toLocaleString()}</td></tr>)}
+</tbody></table></div></div>
+<div><h2>By Worker (Top)</h2><div style={{maxHeight:250,overflow:"auto"}}><table className="mini-table"><thead><tr><th>Worker</th><th style={{textAlign:"right"}}>Wages</th></tr></thead><tbody>
+{outputSum.byWorker.slice(0,20).map(w=><tr key={w.name}><td>{w.name}</td><td style={{textAlign:"right",fontWeight:600}}>${w.wages.toLocaleString()}</td></tr>)}
+</tbody></table></div></div>
+<div><h2>Tax Breakdown</h2>
+<div style={{fontSize:13}}>
+{[["FICA (7.65%)",outputSum.fica],["FUTA (0.6%)",outputSum.futa],["SUTA (varies)",outputSum.suta],["WC (varies)",outputSum.wc]].map(([l,v])=>
+<div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f1f5f9"}}><span>{l}</span><span style={{fontWeight:600}}>${v.toLocaleString()}</span></div>)}
+<div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:"2px solid #1e3a5f",marginTop:4,fontWeight:700,fontSize:14}}><span>Total Tax/Fee Burden</span><span>${fm(outputSum.fica+outputSum.futa+outputSum.suta+outputSum.wc).toLocaleString()}</span></div>
+</div></div>
+</div>
+</div>}
+
+{/* INVOICE GROUPING */}
+{auditTab==="grouping"&&grouping&&<div className="card">
+<h2>Invoice Grouping <span className="badge bp">{grouping.length} groups</span></h2>
+<div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Grouped by Worker + Venue + Week End Date. Click to expand shifts.</div>
+<div style={{maxHeight:600,overflow:"auto"}}>
+{grouping.map((g,gi)=>{const k=`${g.worker}|${g.venue}|${g.weekEnd}`;const isOpen=openGroups[k];return(
+<div key={gi}>
+<div className="grouping-header" onClick={()=>toggleGroup(k)}>
+<span className={`collapse-icon${isOpen?" open":""}`} style={{marginRight:8}}>&#9654;</span>
+<b>{g.worker}</b> <span style={{color:"#64748b"}}>@</span> <span className="badge bb">{g.venue}</span> <span style={{color:"#64748b"}}>| Week: {g.weekEnd}</span>
+<span style={{float:"right"}}><span className="badge bg">{g.shifts.length} shifts</span> <span style={{marginLeft:8,fontWeight:600}}>{fm(g.totalHrs)}h</span> <span style={{marginLeft:8,fontWeight:700,color:"#059669"}}>${fm(g.totalWages)}</span></span>
+</div>
+{isOpen&&<div style={{padding:"0 16px 12px",background:"#f8fafc",borderRadius:"0 0 8px 8px",marginBottom:4}}><table className="mini-table"><thead><tr><th>Date</th><th>Start</th><th>Hours</th><th>Day1</th><th>Day2</th><th>Base</th><th>Prem</th><th>Wages</th><th>Flags</th></tr></thead><tbody>
+{g.shifts.map((s,si)=><tr key={si}><td>{s.A_StartDate}</td><td>{s.A_StartHour}h</td><td>{s["*Hours"]}</td><td>{s.B_Day1Hrs} ({s.A_Day1_Name})</td><td>{s.B_Day2Hrs>0?`${s.B_Day2Hrs} (${s.A_Day2_Name})`:"-"}</td><td>${s.H_BasePay}</td><td>${s.H_PremPay}</td><td style={{fontWeight:600}}>${s.H_TotalCalcWages}</td><td>{[s.J_SunOT,s.J_DailyOT,s.J_WeeklyOT,s.J_CrossesBoundary].filter(Boolean).map(f=><span key={f} className={`badge ${f==="WARNING"?"br":"bb"}`} style={{marginRight:2}}>{f}</span>)}</td></tr>)}
+</tbody></table></div>}
+</div>)})}
+</div>
+</div>}
+
+{/* FIELD MAPPING */}
+{auditTab==="mapping"&&<div className="card">
+<h2>Field Mapping <span className="badge bb">{Object.keys(fieldMap).length}/{FLEX_FIELDS.length} mapped</span></h2>
+<div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Maps your CSV columns to the 65 standard flex invoice fields. Required fields shown in red if unmapped.</div>
+<div className="grid3">
+{["Worker","Shift","Rates","Meta","Custom"].map(cat=><div key={cat}>
+<h2 style={{marginBottom:8}}>{cat} Fields</h2>
+<div style={{maxHeight:400,overflow:"auto"}}>
+{FLEX_FIELDS.filter(f=>f.cat===cat).map(f=>{const mapped=fieldMap[f.key];const missing=f.req&&!mapped;return(
+<div key={f.key} className="field-map-row" style={{borderLeft:missing?"3px solid #dc2626":"3px solid transparent",paddingLeft:8}}>
+<div style={{fontSize:12}}><span style={{fontWeight:600}}>{f.key}</span>{f.req&&<span className="badge br" style={{marginLeft:4}}>REQ</span>}</div>
+<div className="field-map-arrow">&#8594;</div>
+<select value={mapped||""} onChange={e=>{const m={...fieldMap};if(e.target.value)m[f.key]=e.target.value;else delete m[f.key];setFieldMap(m)}} style={{fontSize:11,padding:"4px 6px"}}>
+<option value="">-- unmapped --</option>
+{ic.map(c=><option key={c} value={c}>{c}</option>)}
+</select>
+</div>)})}
+</div>
+</div>)}
+</div>
+</div>}
+
+{/* VENUE CONFIG EDITOR */}
+{auditTab==="venueEdit"&&<div className="card">
+<h2>Venue Configuration Editor</h2>
+<div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Edit venue rules. Changes apply on next "Run Calculations". <button className="btn btn-sm btn-gray" onClick={()=>setEditVC(JSON.parse(JSON.stringify(VC)))}>Reset All</button></div>
+<div className="tw" style={{maxHeight:500}}>
+<div className="venue-edit-row" style={{fontWeight:700,background:"#f1f5f9",padding:"8px 0",position:"sticky",top:0,zIndex:2}}>
+<span>Venue</span><span>Week Start</span><span>Hour Method</span><span>Sun OT</span><span>Sat Prem</span><span>Unpaid Lunch</span><span>Day Divide</span><span>OT Threshold</span>
+</div>
+{Object.entries(editVC).sort(([a],[b])=>a.localeCompare(b)).map(([vn,vc])=>(
+<div key={vn} className="venue-edit-row">
+<span style={{fontWeight:600}}>{vn}</span>
+<select value={vc.w} onChange={e=>{const c={...editVC};c[vn]={...vc,w:e.target.value};setEditVC(c)}}><option>Sunday</option><option>Monday</option></select>
+<select value={vc.hm} onChange={e=>{const c={...editVC};c[vn]={...vc,hm:e.target.value};setEditVC(c)}}><option value="standard">standard</option><option value="scheduled_in">scheduled_in</option><option value="majority_hours">majority_hours</option><option value="scheduled_out">scheduled_out</option></select>
+<input type="checkbox" checked={vc.so} onChange={e=>{const c={...editVC};c[vn]={...vc,so:e.target.checked};setEditVC(c)}} style={{width:"auto"}} />
+<input type="text" value={vc.sp!=null?vc.sp:""} onChange={e=>{const c={...editVC};c[vn]={...vc,sp:e.target.value?parseFloat(e.target.value):null};setEditVC(c)}} placeholder="-" />
+<input type="checkbox" checked={vc.ul} onChange={e=>{const c={...editVC};c[vn]={...vc,ul:e.target.checked};setEditVC(c)}} style={{width:"auto"}} />
+<input type="number" value={vc.dd} onChange={e=>{const c={...editVC};c[vn]={...vc,dd:+e.target.value};setEditVC(c)}} style={{width:60}} />
+<input type="number" value={vc.ot} onChange={e=>{const c={...editVC};c[vn]={...vc,ot:+e.target.value};setEditVC(c)}} style={{width:60}} />
+</div>))}
+</div>
+</div>}
+
+{/* RULES DOCUMENTATION */}
+{auditTab==="rules"&&<div className="card">
+<h2>Venue Rules Documentation</h2>
+<div style={{fontSize:12,color:"#64748b",marginBottom:12}}>How each venue's hours, OT, and premiums are calculated across the 10-stage pipeline.</div>
+<div className="tw" style={{maxHeight:500}}><table className="mini-table">
+<thead><tr><th>Venue</th><th>Week</th><th>Hour Method</th><th>Sun OT</th><th>Sat Prem</th><th>Lunch</th><th>Day Divide</th><th>How It Works</th></tr></thead>
+<tbody>
+{Object.entries(VC).sort(([a],[b])=>a.localeCompare(b)).map(([vn,vc])=>{
+let desc="Standard midnight split.";
+if(vc.hm==="scheduled_in")desc="All hours assigned to shift start day (scheduled-in method).";
+if(vc.hm==="majority_hours")desc="All hours assigned to whichever day has more physical hours (majority method).";
+if(vc.hm==="scheduled_out")desc="Shift end determines day assignment. If shift crosses midnight, all hours go to Day 2.";
+if(vc.so)desc+=" Sunday hours at 1.5x OT rate.";
+if(vc.sp)desc+=` Saturday hours at ${vc.sp}x premium rate.`;
+if(vc.ul)desc+=" 30min unpaid lunch deducted for shifts >6hrs.";
+if(vn==="Hazleton")desc="Configurable day divide (0/5/6/7/23). Uses majority hours method.";
+if(vn==="Neenah")desc="Auto-detects 8hr vs 12hr rules. 8hr=majority_hours, 12hr=scheduled_in.";
+if(vn==="Batavia")desc="Configurable pay group. 24x7=Sun-Sat, 24x5=Mon-Sun week start.";
+if(vn==="Terre Haute")desc="Scheduled-out method. Shift end (start+hours+break) determines day. If crosses midnight, all hours on Day 2.";
+return<tr key={vn}><td style={{fontWeight:600}}>{vn}</td><td><span className={`badge ${vc.w==="Sunday"?"bb":"ba"}`}>{vc.w}</span></td><td>{vc.hm}</td><td className={vc.so?"wn":""}>{vc.so?"YES":"No"}</td><td className={vc.sp?"wn":""}>{vc.sp?vc.sp+"x":"-"}</td><td className={vc.ul?"wn":""}>{vc.ul?"YES":"-"}</td><td>{vc.dd||0}</td><td style={{whiteSpace:"normal",maxWidth:300,fontSize:11}}>{desc}</td></tr>})}
+</tbody></table></div>
+</div>}
+
+{/* DAILY BREAKDOWN */}
+{auditTab==="daily"&&<div className="card">
+<h2>Daily Breakdown</h2>
+<div style={{fontSize:12,color:"#64748b",marginBottom:12}}>Per-shift day-by-day hours and pay allocation detail.</div>
+<div className="tw" style={{maxHeight:500}}><table className="mini-table">
+<thead><tr><th>#</th><th>Worker</th><th>Venue</th><th>Date</th><th>Start</th><th>Total Hrs</th><th>Day1 ({">"}Day Divide)</th><th>Day2 (after)</th><th>D1 Reg</th><th>D1 OT</th><th>D2 Reg</th><th>D2 OT</th><th>Eff Method</th><th>Wk Reg</th><th>Wk OT</th><th>Base Pay</th><th>Prem Pay</th><th>Total</th></tr></thead>
+<tbody>
+{dr.map((r,i)=><tr key={i}><td>{i+1}</td><td>{r["Worker Name"]}</td><td>{r.Venue}</td><td>{r.A_StartDate}</td><td>{r.A_StartHour}h</td><td style={{fontWeight:600}}>{r["*Hours"]}</td>
+<td>{r.B_Day1Hrs}h ({r.A_Day1_Name})</td><td>{r.B_Day2Hrs>0?`${r.B_Day2Hrs}h (${r.A_Day2_Name})`:"-"}</td>
+<td>{r.D_D1Reg}</td><td className={parseFloat(r.D_D1DailyOT)>0?"wn":""}>{r.D_D1DailyOT}</td>
+<td>{r.E_D2Reg}</td><td className={parseFloat(r.E_D2DailyOT)>0?"wn":""}>{r.E_D2DailyOT}</td>
+<td><span className="badge bp">{r.C_EffMethod}</span></td>
+<td>{r.F_WkReg}</td><td className={parseFloat(r.F_WkOT)>0?"wn":""}>{r.F_WkOT}</td>
+<td>${r.H_BasePay}</td><td style={{color:parseFloat(r.H_PremPay)>0?"#dc2626":"inherit"}}>${r.H_PremPay}</td>
+<td style={{fontWeight:700}}>${r.H_TotalCalcWages}</td></tr>)}
+</tbody></table></div>
+</div>}
+
+</div>}
+</>}
+
+<div className="foot">Amcor Invoice Calculation Engine v2 | 158/158 tests passed | 36 venues | 65 flex fields | 10-stage pipeline</div>
 </div>)}
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
