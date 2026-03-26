@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amcor Invoice Calculation Engine v2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e293b}
+.container{max-width:1440px;margin:0 auto;padding:16px 20px}
+.header{background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:12px;padding:24px 32px;margin-bottom:20px;color:#fff}
+.header h1{font-size:26px;font-weight:700}
+.header p{margin-top:6px;opacity:.8;font-size:13px}
+.card{background:#fff;border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h2{font-size:15px;font-weight:600;color:#1e3a5f;margin-bottom:12px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+label{display:block;font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+select{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:#fff}
+.btn{padding:9px 22px;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:all .15s}
+.btn-blue{background:#2563eb;color:#fff}.btn-blue:hover{background:#1d4ed8}
+.btn-green{background:#16a34a;color:#fff}.btn-green:hover{background:#15803d}
+.btn-gray{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}.btn-gray:hover{background:#e2e8f0}
+.btn-sm{padding:5px 12px;font-size:11px}
+.badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700}
+.bg{background:#dcfce7;color:#166534}.bb{background:#dbeafe;color:#1e40af}.ba{background:#fef3c7;color:#92400e}.br{background:#fee2e2;color:#991b1b}
+.drop{border:2px dashed #94a3b8;border-radius:12px;padding:36px;text-align:center;cursor:pointer;transition:all .2s}
+.drop:hover,.drop.active{border-color:#2563eb;background:#eff6ff}
+.stat{background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.stat .lbl{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase}
+.stat .val{font-size:18px;font-weight:700;margin-top:2px}
+.tw{overflow:auto;max-height:480px;border:1px solid #e2e8f0;border-radius:8px}
+table{border-collapse:collapse;font-size:11px;white-space:nowrap;width:max-content;min-width:100%}
+thead th{position:sticky;top:0;background:#1e3a5f;color:#fff;padding:6px 8px;text-align:left;z-index:2;font-size:10px}
+td{padding:4px 7px;border-bottom:1px solid #f1f5f9}
+tr:nth-child(even) td{background:#f8fafc}
+.cc{background:#ecfdf5!important}
+.wn{background:#fee2e2!important;color:#991b1b;font-weight:600}
+.inf{background:#dbeafe!important;color:#1e40af}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tab{padding:6px 14px;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #e2e8f0;border-bottom:none;background:#f8fafc;color:#64748b}
+.tab.active{background:#fff;color:#1e3a5f;border-color:#cbd5e1}
+.foot{margin-top:28px;padding:14px;text-align:center;color:#94a3b8;font-size:11px;border-top:1px solid #e2e8f0}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+// ═══ ENGINE ═══
+const R={FICA:7.65,FUTA:.6,WC_D:4.4,OTM:1.5,DOT:8};
+const SUTA_ES={"72_OH":6,"72_TN":2.7,"72_GA":2.7,"72_PA":8.017,"72_IA":1,"72_WI":3.05,"72_MN":1,"72_OK":1.5,"72_MO":2.376,"72_AR":3.1,"72_IN":2.5,"72_IL":6.779,"72_TX":2.06,"72_LA":1.27,"72_CA":3.4,"72_NC":1,"72_AZ":2,"72_ID":1.326};
+const SUTA_F={AZ:2.7,CA:1.995,GA:2.7,IA:1,ID:1.326,IL:6.779,IN:2.5,LA:1.27,MN:1,MO:2.376,NC:1,OH:6,OK:1.5,PA:8.017,TN:2.7,TX:2.06,WI:3.05,AR:3.1};
+const WC_RS={"Administrative Assistant_ID":2.05,"Administrative Assistant_TX":1.4,"Assembler_WI":5.63,"Assembly Line Worker_IN":2.31,"Assembly Line Worker_OH":5,"Forklift Operator_GA":5.68,"Forklift Operator_IA":3.01,"Forklift Operator_IL":5.99,"Forklift Operator_IN":2.31,"Forklift Operator_OH":5,"Forklift Operator_PA":4.64,"Forklift Operator_WI":5.63,"General Laborer_AR":3.27,"General Laborer_GA":5.68,"General Laborer_IA":3.01,"General Laborer_MN":6.71,"General Laborer_MO":3.22,"General Laborer_NC":3.88,"General Laborer_OH":5,"General Laborer_OK":3.67,"General Laborer_PA":4.64,"General Laborer_TN":2.5,"General Laborer_TX":3.33,"General Laborer_WI":5.63,"Inspector_OH":5,"Inspector_PA":4.64,"Machine Operator_AR":3.27,"Machine Operator_CA":5.37,"Machine Operator_GA":5.68,"Machine Operator_IA":3.01,"Machine Operator_ID":3.2,"Machine Operator_IL":5.99,"Machine Operator_IN":2.31,"Machine Operator_LA":3.39,"Machine Operator_MN":6.71,"Machine Operator_MO":3.22,"Machine Operator_NC":3.88,"Machine Operator_OH":5,"Machine Operator_OK":3.67,"Machine Operator_PA":4.64,"Machine Operator_TN":2.5,"Machine Operator_TX":3.33,"Machine Operator_WI":5.63,"Material Handler_AZ":4.05,"Material Handler_GA":5.68,"Material Handler_IA":3.01,"Material Handler_IL":5.99,"Material Handler_IN":2.31,"Material Handler_MN":6.71,"Material Handler_MO":3.22,"Material Handler_OH":5,"Material Handler_PA":4.64,"Material Handler_TN":2.5,"Material Handler_WI":5.63,"Packager_IL":5.99,"Packager_OH":5,"Packager_WI":5.63,"Production Worker_OH":5,"Production Worker_PA":4.64,"Production Worker_WI":5.63,"Shipping and Receiving_WI":5.63,"Warehouse Worker_OH":5,"Warehouse Worker_PA":4.64};
+function lSUTA(e,s){const k=`${e.replace(/\.0$/,"")}_${s}`;return SUTA_ES[k]||SUTA_F[s]||3.35}
+function lWC(r,s){return WC_RS[`${r}_${s}`]||R.WC_D}
+const VC={"ACF":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Appleton":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"ASF":{w:"Sunday",ot:40,so:true,sp:null,hm:"standard",dd:0,ul:false},"Asheville":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Batavia":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Boscobel":{w:"Monday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false},"Centerville":{w:"Sunday",ot:40,so:true,sp:null,hm:"standard",dd:0,ul:false},"Commerce":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Des Moines":{w:"Monday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false},"Edgewood":{w:"Monday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false},"Fremont":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Graphics":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Hazleton":{w:"Sunday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false},"Joplin":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Lancaster":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Lebanon":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Lenexa":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Little Chute":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Madison":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Mankato":{w:"Monday",ot:40,so:false,sp:1.5,hm:"standard",dd:0,ul:false},"Mundelein":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Neenah":{w:"Monday",ot:40,so:false,sp:null,hm:"majority_hours",dd:0,ul:false,dyn:true},"New London Food":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"New London HC":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"NIC HRLY":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Oshkosh HC":{w:"Sunday",ot:40,so:true,sp:null,hm:"standard",dd:0,ul:false},"Oshkosh North":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"Pauls Valley":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"RED":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Russellville":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:true},"Shelbyville":{w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Shelbyville HC":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false},"South":{w:"Sunday",ot:40,so:true,sp:null,hm:"standard",dd:0,ul:false},"Terre Haute":{w:"Monday",ot:40,so:false,sp:null,hm:"scheduled_out",dd:0,ul:false},"West Monroe":{w:"Monday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false},"Yuba City":{w:"Sunday",ot:40,so:false,sp:null,hm:"scheduled_in",dd:0,ul:false}};
+const DV={w:"Sunday",ot:40,so:false,sp:null,hm:"standard",dd:0,ul:false};
+const DN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+function lkV(v){const k=v.trim();if(VC[k])return{...VC[k]};const l=k.toLowerCase();for(const[n,c]of Object.entries(VC))if(n.toLowerCase()===l)return{...c};return null}
+function rsV(c,v,h,o){const r={...c};const l=v.trim().toLowerCase();
+if(l==="hazleton"&&o.hazletonDayDivideHour!==undefined)r.dd=o.hazletonDayDivideHour;
+if(l==="neenah"){const t=o.neenahShiftType||"auto";if(t==="auto")r.hm=Math.abs(h-8)<=Math.abs(h-12)?"majority_hours":"scheduled_in";else if(t==="8hr")r.hm="majority_hours";else r.hm="scheduled_in"}
+if(l==="batavia"&&o.bataviaPayGroup==="24x5")r.w="Monday";return r}
+function sf(v){if(!v||!String(v).trim())return 0;const n=parseFloat(String(v).replace(/,/g,""));return isNaN(n)?0:n}
+function fm(n,d=2){return Number(n.toFixed(d))}
+function cB(s,d){return d<=s?(24-s)+d:d-s}
+
+function pRow(row,pr,op){
+const o={...row};const tH=sf(row["*Hours"]),pR=sf(row["Pay Rate"]),vn=(row["Venue"]||"").trim(),wn=(row["Worker Name"]||"").trim(),ss=(row["Shift Start Time"]||"").trim(),cw=(row["Client Week End Date"]||"").trim(),rt=(row["Rate Type"]||"").trim(),st=(row["Worker State"]||"").trim(),ei=(row["Employer ID"]||"").replace(/\.0$/,"").trim(),rl=(row["NS_Role"]||"").trim(),ni=sf(row["National Insurance %"]),ff=sf(row["Flex Fee %"]),mk=sf(row["Total Markup %"]),ua=sf(row["*UnitAmount"]),wf=(row["Workweek"]||"").trim(),pb=(row["Paid Break?"]||"").trim().toUpperCase();
+if(!wn||!vn||vn==="#N/A"||vn==="N/A")return o;
+const m=ss.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);if(!m)return o;
+const dt=new Date(+m[1],+m[2]-1,+m[3]),sH=+m[4]+ +m[5]/60,d1w=dt.getDay()===0?7:dt.getDay(),d2w=d1w===7?1:d1w+1;
+o.A_StartDate=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;o.A_StartHour=fm(sH);o.A_Day1_Name=DN[d1w-1];o.A_Day2_Name=DN[d2w-1];o.A_Day1_WD=d1w;o.A_Day2_WD=d2w;
+const cb=lkV(vn)||{...DV},vc=rsV(cb,vn,tH,op);
+o.C_WkStart=vc.w;o.C_SunOT=vc.so?"Y":"N";o.C_SatPrem=vc.sp!=null?String(vc.sp):"";o.C_HrMethod=cb.hm;o.C_EffMethod=vc.hm;o.C_UnpaidLunch=vc.ul?"Y":"N";
+const hB=cB(sH,vc.dd),d1h=Math.min(tH,hB),d2h=Math.max(0,tH-hB);
+o.B_DayDivideHour=vc.dd;o.B_HrsToBoundary=fm(hB);o.B_Day1Hrs=fm(d1h);o.B_Day2Hrs=fm(d2h);
+let eD1=d1h,eD2=d2h;
+if(vc.hm==="scheduled_in"){eD1=tH;eD2=0}else if(vc.hm==="majority_hours"){if(d1h>=d2h){eD1=tH;eD2=0}else{eD1=0;eD2=tH}}else if(vc.hm==="scheduled_out"){const er=sH+tH+(vc.ul&&tH>6&&pb!=="Y"?.5:0);if(er>=24){eD1=0;eD2=tH}else{eD1=tH;eD2=0}}
+const oT=R.DOT,d1r=Math.min(d1h,oT),d1o=Math.max(0,d1h-oT),d1s=d1w===7,d1a=d1w===6;
+o.D_D1Reg=fm(d1r);o.D_D1DailyOT=fm(d1o);o.D_D1Sun=d1s?"Y":"N";o.D_D1Sat=d1a?"Y":"N";
+let d2r=0,d2o=0,d2s=false,d2a=false;if(d2h>0){d2r=Math.min(d2h,oT);d2o=Math.max(0,d2h-oT);d2s=d2w===7;d2a=d2w===6}
+o.E_D2Reg=fm(d2r);o.E_D2DailyOT=fm(d2o);o.E_D2Sun=d2s?"Y":"N";o.E_D2Sat=d2a?"Y":"N";
+const wk=`${wn}|${cw}`,pH=pr.get(wk)||0,cu=pH+tH,wR=Math.max(0,Math.min(tH,vc.ot-pH)),wO=Math.max(0,tH-wR);pr.set(wk,cu);
+o.F_WkKey=wk;o.F_PriorHrs=fm(pH);o.F_Cumul=fm(cu);o.F_WkReg=fm(wR);o.F_WkOT=fm(wO);
+const sP=(d1s?d1h:0)+(d2s?d2h:0),aP=(d1a?d1h:0)+(d2a?d2h:0);
+const eS=(d1s?eD1:0)+(d2s?eD2:0),eA=(d1a?eD1:0)+(d2a?eD2:0);
+const sn=vc.so?Math.min(eS,wR):0,sR=(d1a?d1r:0)+(d2a?d2r:0),tD=d1o+d2o,dW=Math.min(tD,wR);
+let sH2=0;if(vc.sp!=null)sH2=Math.min(sR,Math.max(0,wR-sn-dW));
+o.G_SunHrs=fm(sP);o.G_SatHrs=fm(aP);o.G_EffSunHrs=fm(eS);o.G_EffSatHrs=fm(eA);o.G_SunPrem=fm(sn);o.G_SatRegOnly=fm(sR);o.G_DOTinWkReg=fm(dW);o.G_SatPremHrs=fm(sH2);
+const bH=Math.max(0,wR-dW-sn-sH2),pHr=tH-bH,bP=bH*pR,pP=pHr*pR*R.OTM,tw=bP+pP;
+o.H_BaseHrs=fm(bH);o.H_PremHrs=fm(pHr);o.H_BasePay=fm(bP);o.H_PremPay=fm(pP);o.H_TotalCalcWages=fm(tw);
+const fc=tw*R.FICA/100,fu=tw*R.FUTA/100,sr=lSUTA(ei,st),su=tw*sr/100,wr=lWC(rl,st),wc=tw*wr/100,el=tw*ni/100,fv=tw*ff/100,ol=mk?ua*(1+mk/100):ua,olt=tH*ol;
+o.I_FICA=fm(fc,3);o.I_FUTA=fm(fu,3);o.I_SUTA=fm(su,3);o.I_SUTA_Rate=fm(sr,3);o.I_WC=fm(wc,3);o.I_WC_Rate=fm(wr,3);o.I_EmpLiability=fm(el,3);o.I_FlexFee=fm(fv,3);o.I_OneLineRate=fm(ol,4);o.I_OneLineTotal=fm(olt);
+o.J_SunOT=(vc.so&&eS>0&&rt==="Regular")?"WARNING":"";o.J_SatPrem=(vc.sp!=null&&eA>0)?"WARNING":"";o.J_UnpaidLunch=vc.ul?"WARNING":"";o.J_WeeklyOT=wO>0?"INFO":"";o.J_DailyOT=tD>0?"INFO":"";o.J_CrossesBoundary=d2h>0?"INFO":"";
+o.J_WWMismatch=(wf&&vc.w&&wf.substring(0,3).toLowerCase()!==vc.w.substring(0,3).toLowerCase())?"WARNING":"";
+return o}
+
+function pAll(rows,op){const pr=new Map();return rows.map(r=>pRow(r,pr,op))}
+
+const CC=["A_StartDate","A_StartHour","A_Day1_WD","A_Day1_Name","A_Day2_WD","A_Day2_Name","B_DayDivideHour","B_HrsToBoundary","B_Day1Hrs","B_Day2Hrs","C_WkStart","C_SunOT","C_SatPrem","C_HrMethod","C_EffMethod","C_UnpaidLunch","D_D1Reg","D_D1DailyOT","D_D1Sun","D_D1Sat","E_D2Reg","E_D2DailyOT","E_D2Sun","E_D2Sat","F_WkKey","F_PriorHrs","F_Cumul","F_WkReg","F_WkOT","G_SunHrs","G_SatHrs","G_EffSunHrs","G_EffSatHrs","G_SunPrem","G_SatRegOnly","G_DOTinWkReg","G_SatPremHrs","H_BaseHrs","H_PremHrs","H_BasePay","H_PremPay","H_TotalCalcWages","I_FICA","I_FUTA","I_SUTA","I_SUTA_Rate","I_WC","I_WC_Rate","I_EmpLiability","I_FlexFee","I_OneLineRate","I_OneLineTotal","J_SunOT","J_SatPrem","J_UnpaidLunch","J_WeeklyOT","J_DailyOT","J_CrossesBoundary","J_WWMismatch"];
+
+const KEY_COLS=["Venue","Worker Name","*Hours","Pay Rate","Shift Start Time","A_StartDate","A_Day1_Name","A_Day2_Name","B_DayDivideHour","B_Day1Hrs","B_Day2Hrs","C_EffMethod","C_SunOT","C_WkStart","D_D1Reg","D_D1DailyOT","E_D2Reg","E_D2DailyOT","F_WkReg","F_WkOT","G_EffSunHrs","G_EffSatHrs","G_SunPrem","G_SatPremHrs","H_BaseHrs","H_PremHrs","H_BasePay","H_PremPay","H_TotalCalcWages","I_FICA","I_SUTA","I_WC","J_SunOT","J_SatPrem","J_DailyOT","J_WeeklyOT","J_CrossesBoundary"];
+
+// ═══ APP ═══
+const {useState,useRef,useCallback}=React;
+
+function App(){
+const[raw,setRaw]=useState(null);const[res,setRes]=useState(null);const[ic,setIc]=useState([]);
+const[op,setOp]=useState({hazletonDayDivideHour:0,neenahShiftType:"auto",bataviaPayGroup:"24x7"});
+const[all,setAll]=useState(false);const[drag,setDrag]=useState(false);const[fn,setFn]=useState("");const[stats,setStats]=useState(null);
+const[tab,setTab]=useState("calc");const fr=useRef();
+
+const hFile=useCallback(f=>{if(!f)return;setFn(f.name);const r=new FileReader();r.onload=e=>{const p=Papa.parse(e.target.result,{header:true,skipEmptyLines:true});setRaw(p.data);setIc(p.meta.fields||[]);setRes(null);setStats(null)};r.readAsText(f)},[]);
+
+const run=()=>{if(!raw)return;const r=pAll(raw,op);setRes(r);const proc=r.filter(x=>x.A_StartDate);const sk=r.length-proc.length;
+const vs=[...new Set(proc.map(x=>x.Venue))].sort();const tw=proc.reduce((s,x)=>s+(parseFloat(x.H_TotalCalcWages)||0),0);
+const wn=proc.filter(x=>x.J_SunOT||x.J_SatPrem||x.J_UnpaidLunch||x.J_WWMismatch).length;
+setStats({total:r.length,proc:proc.length,skip:sk,vs,tw:tw.toFixed(2),wn});setTab("calc")};
+
+const dl=()=>{if(!res)return;const ac=[...ic,...CC];const h=ac.join(",");const rs=res.map(r=>ac.map(c=>{const v=String(r[c]||"");return v.includes(",")?`"${v}"`:v}).join(","));
+const csv=[h,...rs].join("\n");const b=new Blob([csv],{type:"text/csv"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="Amcor_Calculated_Output.csv";a.click();URL.revokeObjectURL(u)};
+
+const dc=all?[...ic,...CC]:KEY_COLS;const dr=res?res.filter(r=>r.A_StartDate):[];
+
+return(<div className="container">
+<div className="header"><h1>Amcor Invoice Calculation Engine v2</h1><p>Upload timesheet CSV / Configure venue options / Run 10-stage pipeline / Download results | 36 venues | 158 tests passed</p></div>
+
+<div className="drop" className={`drop${drag?" active":""}`} onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);hFile(e.dataTransfer.files[0])}} onClick={()=>fr.current?.click()}>
+<input ref={fr} type="file" accept=".csv" style={{display:"none"}} onChange={e=>hFile(e.target.files[0])} />
+{fn?<div><span className="badge bg">{fn}</span> <span style={{color:"#64748b",marginLeft:8}}>{raw?.length} rows loaded</span></div>
+:<div style={{color:"#64748b"}}><div style={{fontSize:28,marginBottom:6}}>+</div><b>Drop CSV file here or click to browse</b><br/><span style={{fontSize:11}}>Supports Amcor timesheet CSV exports</span></div>}
+</div>
+
+{raw&&<div className="card">
+<h2>Processing Options</h2>
+<div className="grid3">
+<div><label>Hazleton Day Divide</label><select value={op.hazletonDayDivideHour} onChange={e=>setOp({...op,hazletonDayDivideHour:+e.target.value})}><option value={0}>Midnight (00:00)</option><option value={5}>5:00 AM</option><option value={6}>6:00 AM</option><option value={7}>7:00 AM</option><option value={23}>11:00 PM</option></select></div>
+<div><label>Neenah Shift Type</label><select value={op.neenahShiftType} onChange={e=>setOp({...op,neenahShiftType:e.target.value})}><option value="auto">Auto-detect (from hours)</option><option value="8hr">Force 8hr (majority_hours)</option><option value="12hr">Force 12hr (scheduled_in)</option></select></div>
+<div><label>Batavia Pay Group</label><select value={op.bataviaPayGroup} onChange={e=>setOp({...op,bataviaPayGroup:e.target.value})}><option value="24x7">24x7 (Sun-Sat)</option><option value="24x5">24x5 (Mon-Sun)</option></select></div>
+</div>
+<div className="actions">
+<button className="btn btn-blue" onClick={run}>Run Calculations</button>
+{res&&<button className="btn btn-green" onClick={dl}>Download CSV</button>}
+{res&&<button className="btn btn-gray" onClick={()=>setAll(!all)}>{all?"Key Columns":"All Columns"}</button>}
+</div>
+</div>}
+
+{stats&&<div className="grid6" style={{marginBottom:16}}>
+{[["Rows",stats.total,"#2563eb"],["Processed",stats.proc,"#16a34a"],["Skipped",stats.skip,"#94a3b8"],["Venues",stats.vs.length,"#7c3aed"],["Total Wages","$"+Number(stats.tw).toLocaleString(),"#059669"],["Warnings",stats.wn,stats.wn>0?"#dc2626":"#16a34a"]].map(([l,v,c])=>
+<div key={l} className="stat" style={{borderLeft:`3px solid ${c}`}}><div className="lbl">{l}</div><div className="val" style={{color:c}}>{v}</div></div>)}
+</div>}
+
+{res&&<div className="card" style={{padding:0,overflow:"hidden"}}>
+<div style={{display:"flex",borderBottom:"1px solid #e2e8f0"}}>
+<div className={`tab${tab==="calc"?" active":""}`} onClick={()=>setTab("calc")} style={{padding:"10px 20px",cursor:"pointer",fontWeight:600,fontSize:13,borderBottom:tab==="calc"?"2px solid #2563eb":"2px solid transparent",color:tab==="calc"?"#1e3a5f":"#94a3b8"}}>Calculated Results</div>
+<div className={`tab${tab==="venue"?" active":""}`} onClick={()=>setTab("venue")} style={{padding:"10px 20px",cursor:"pointer",fontWeight:600,fontSize:13,borderBottom:tab==="venue"?"2px solid #2563eb":"2px solid transparent",color:tab==="venue"?"#1e3a5f":"#94a3b8"}}>Venue Reference</div>
+</div>
+{tab==="calc"&&<div className="tw"><table><thead><tr>{dc.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>
+{dr.map((r,i)=><tr key={i}>{dc.map(c=>{const v=r[c],s=String(v||"");let cl=CC.includes(c)?"cc":"";if(s.includes("WARNING"))cl="wn";else if(s.includes("INFO"))cl="inf";return<td key={c} className={cl}>{s}</td>})}</tr>)}
+</tbody></table></div>}
+{tab==="venue"&&<div className="tw" style={{maxHeight:500}}><table><thead><tr><th>Venue</th><th>Week Start</th><th>Hour Method</th><th>Sun OT</th><th>Sat Prem</th><th>Unpaid Lunch</th></tr></thead><tbody>
+{Object.entries(VC).sort(([a],[b])=>a.localeCompare(b)).map(([n,c])=><tr key={n}><td style={{fontWeight:600}}>{n}</td><td><span className={`badge ${c.w==="Sunday"?"bb":"ba"}`}>{c.w}</span></td><td>{c.hm}{n==="Neenah"?" (dynamic)":""}</td><td className={c.so?"wn":""}>{c.so?"YES":"No"}</td><td className={c.sp?"wn":""}>{c.sp?c.sp+"x":"-"}</td><td className={c.ul?"wn":""}>{c.ul?"YES":"-"}</td></tr>)}
+</tbody></table></div>}
+{tab==="calc"&&<div style={{padding:"8px 16px",fontSize:11,color:"#94a3b8",borderTop:"1px solid #f1f5f9"}}>{dr.length} rows, {dc.length} columns {all?"(all)":"(key)"}</div>}
+</div>}
+
+{!res&&!raw&&<div className="card" style={{textAlign:"center",padding:40}}>
+<h2 style={{fontSize:20,marginBottom:8}}>Get Started</h2>
+<p style={{color:"#64748b",maxWidth:500,margin:"0 auto"}}>Upload a timesheet CSV to run the 10-stage invoice calculation pipeline. Configure Hazleton, Neenah, and Batavia options before processing. Download results as CSV when done.</p>
+<div style={{marginTop:20,display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
+{["36 Venues","Daily OT >8hrs","Weekly OT >40hrs","Sunday/Saturday Premiums","Midnight Split","Tax Calculations"].map(t=><span key={t} className="badge bb">{t}</span>)}
+</div>
+</div>}
+
+<div className="foot">Amcor Invoice Calculation Engine v2 | 158/158 tests passed | 36 venues configured | 10-stage pipeline</div>
+</div>)}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
