@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e293b}
@@ -302,6 +303,127 @@ workers:[...new Set(g.rows.map(r=>(r["Worker Name"]||"").trim()))].sort(),venueB
 const dl=()=>{if(!res)return;const ac=[...ic,...CC];const h=ac.join(",");const rs=res.map(r=>ac.map(c=>{const v=String(r[c]||"");return v.includes(",")?`"${v}"`:v}).join(","));
 const csv=[h,...rs].join("\n");const b=new Blob([csv],{type:"text/csv"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="Amcor_Calculated_Output.csv";a.click();URL.revokeObjectURL(u)};
 
+const dlXlsx=()=>{if(!raw||!res)return;
+const wb=XLSX.utils.book_new();
+// Determine which rows were excluded
+const procSet=new Set();res.forEach(r=>{if(r.A_StartDate)procSet.add(r)});
+
+// ═══ TAB 1: Original Data + Excluded column ═══
+const origCols=[...ic,"Excluded","Exclusion Reason"];
+const origData=[origCols];
+raw.forEach((r,i)=>{
+const matched=res[i];const excluded=!matched||!matched.A_StartDate;
+let reason="";
+if(excluded){const w=(r["Worker Name"]||"").trim(),v=(r["Venue"]||"").trim(),ss=(r["Shift Start Time"]||"").trim(),desc=(r["*Description"]||"").trim();
+if(!w&&(!v||v==="#N/A"||v==="N/A"))reason="No Worker + No Venue";
+else if(!w)reason="No Worker Name";
+else if(!v||v==="#N/A"||v==="N/A")reason="Venue: "+(v||"empty");
+else if(!ss.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))reason="Invalid Shift Start Time";
+else reason="Processing error";
+if(desc.match(/fee\s*@|employer\s+liability/i))reason="Fee/NI line item: "+desc}
+origData.push(origCols.map(c=>{if(c==="Excluded")return excluded?"TRUE":"FALSE";if(c==="Exclusion Reason")return reason;return r[c]!=null?r[c]:""}))});
+const ws1=XLSX.utils.aoa_to_sheet(origData);
+// Column widths
+ws1["!cols"]=origCols.map(c=>({wch:Math.min(Math.max(c.length,8),30)}));
+XLSX.utils.book_append_sheet(wb,ws1,"Original Data");
+
+// ═══ TAB 2: Calculated Output ═══
+const calcCols=[...ic,...CC];
+const calcData=[calcCols];
+res.filter(r=>r.A_StartDate).forEach(r=>{calcData.push(calcCols.map(c=>r[c]!=null?r[c]:""))});
+const ws2=XLSX.utils.aoa_to_sheet(calcData);
+ws2["!cols"]=calcCols.map(c=>({wch:Math.min(Math.max(c.length,8),25)}));
+XLSX.utils.book_append_sheet(wb,ws2,"Calculated Output");
+
+// ═══ TAB 3: Checks & Reconciliation ═══
+const checksData=[];
+const proc=res.filter(r=>r.A_StartDate);const skip=res.filter(r=>!r.A_StartDate);
+const iWorkers=new Set(raw.map(r=>(r["Worker Name"]||"").trim()).filter(Boolean));
+const oWorkers=new Set(proc.map(r=>(r["Worker Name"]||"").trim()).filter(Boolean));
+const iVenues=new Set(raw.map(r=>(r["Venue"]||"").trim()).filter(x=>x&&x!=="#N/A"&&x!=="N/A"));
+const oVenues=new Set(proc.map(r=>(r["Venue"]||"").trim()).filter(Boolean));
+const iHrs=raw.reduce((s,r)=>s+sf(r["*Hours"]),0);
+const oHrs=proc.reduce((s,r)=>s+sf(r["*Hours"]),0);
+const iVW=new Set(raw.filter(r=>(r["Worker Name"]||"").trim()&&(r["Venue"]||"").trim()&&(r["Venue"]||"").trim()!=="#N/A").map(r=>(r["Venue"]||"").trim()+"|"+(r["Worker Name"]||"").trim()));
+const oVW=new Set(proc.map(r=>(r["Venue"]||"").trim()+"|"+(r["Worker Name"]||"").trim()));
+
+// Section 1: Summary
+checksData.push(["RECONCILIATION SUMMARY","","",""]);
+checksData.push(["Metric","Input","Output","Status"]);
+checksData.push(["Total Rows",raw.length,proc.length,skip.length===0?"MATCH":"DELTA: "+skip.length+" excluded"]);
+checksData.push(["Unique Workers",iWorkers.size,oWorkers.size,iWorkers.size===oWorkers.size?"MATCH":"DELTA: "+([...iWorkers].filter(w=>!oWorkers.has(w)).length)+" missing"]);
+checksData.push(["Unique Venues",iVenues.size,oVenues.size,iVenues.size===oVenues.size?"MATCH":"DELTA: "+([...iVenues].filter(v=>!oVenues.has(v)).length)+" missing"]);
+checksData.push(["Total Hours",fm(iHrs),fm(oHrs),Math.abs(iHrs-oHrs)<0.01?"MATCH":"DELTA: "+fm(iHrs-oHrs)+" hrs"]);
+checksData.push(["Venue x Worker Combos",iVW.size,oVW.size,iVW.size===oVW.size?"MATCH":"DELTA: "+([...iVW].filter(k=>!oVW.has(k)).length)+" dropped"]);
+checksData.push(["Worker Coverage %","",oWorkers.size>0&&iWorkers.size>0?Math.round(oWorkers.size/iWorkers.size*100)+"%":"N/A",""]);
+checksData.push(["Hours Coverage %","",iHrs>0?Math.round(oHrs/iHrs*100)+"%":"N/A",""]);
+checksData.push(["Row Yield %","",raw.length>0?Math.round(proc.length/raw.length*100)+"%":"N/A",""]);
+checksData.push([]);
+
+// Section 2: Missing Workers
+const missingW=[...iWorkers].filter(w=>!oWorkers.has(w));
+if(missingW.length>0){
+checksData.push(["MISSING WORKERS","","","",""]);
+checksData.push(["Worker Name","Input Rows","Venues","Hours","Reason"]);
+missingW.forEach(w=>{const wRows=raw.filter(r=>(r["Worker Name"]||"").trim()===w);
+const wVenues=[...new Set(wRows.map(r=>(r["Venue"]||"").trim()))].filter(Boolean).join(", ");
+const wHrs=fm(wRows.reduce((s,r)=>s+sf(r["*Hours"]),0));
+const reasons=new Set();wRows.forEach(r=>{const v=(r["Venue"]||"").trim();const ss=(r["Shift Start Time"]||"").trim();
+if(!v||v==="#N/A"||v==="N/A")reasons.add("No/Invalid Venue");if(!ss.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))reasons.add("Bad Shift Time");if(!sf(r["*Hours"]))reasons.add("Zero Hours")});
+checksData.push([w,wRows.length,wVenues,wHrs,[...reasons].join("; ")||"Unknown"])});
+checksData.push([])}
+
+// Section 3: Missing Venues
+const missingV=[...iVenues].filter(v=>!oVenues.has(v));
+if(missingV.length>0){
+checksData.push(["MISSING VENUES","","","",""]);
+checksData.push(["Venue","Input Rows","Workers","Hours","In Config?"]);
+missingV.forEach(v=>{const vRows=raw.filter(r=>(r["Venue"]||"").trim()===v);
+const vW=[...new Set(vRows.map(r=>(r["Worker Name"]||"").trim()))].filter(Boolean);
+checksData.push([v,vRows.length,vW.length,fm(vRows.reduce((s,r)=>s+sf(r["*Hours"]),0)),lkV(v)?"Yes":"No"])});
+checksData.push([])}
+
+// Section 4: Excluded Rows Detail
+checksData.push(["EXCLUDED ROWS DETAIL","","","","","","","",""]);
+checksData.push(["CSV Row","Worker","Venue","Description","Hours","Pay Rate","Shift Time","NS_Role","Exclusion Reason"]);
+skip.forEach((r,i)=>{const w=(r["Worker Name"]||"").trim(),v=(r["Venue"]||"").trim(),ss=(r["Shift Start Time"]||"").trim(),desc=(r["*Description"]||"").trim();
+let reason="Unknown";if(!w&&(!v||v==="#N/A"||v==="N/A"))reason="No Worker + No Venue";else if(!w)reason="No Worker Name";else if(!v||v==="#N/A"||v==="N/A")reason="Venue: "+(v||"empty");else if(!ss.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))reason="Bad Shift Time";
+if(desc.match(/fee\s*@|employer\s+liability/i))reason="Fee/NI Row: "+desc;
+checksData.push([i+1,w||"-",v||"-",desc||"N/A",r["*Hours"]||"-",r["Pay Rate"]||"-",ss||"-",(r["NS_Role"]||"").trim()||"-",reason])});
+checksData.push([]);
+
+// Section 5: Wage Totals by Venue
+checksData.push(["WAGE TOTALS BY VENUE","","","",""]);
+checksData.push(["Venue","Input Hours","Output Hours","Hours Delta","Output Wages","Fee %","NI %"]);
+const venueWages={};proc.forEach(r=>{const v=(r.Venue||"").trim();if(!venueWages[v])venueWages[v]={iHrs:0,oHrs:0,wages:0};
+venueWages[v].oHrs+=sf(r["*Hours"]);venueWages[v].wages+=parseFloat(r.H_TotalCalcWages)||0});
+raw.forEach(r=>{const v=(r["Venue"]||"").trim();if(v&&v!=="#N/A"&&v!=="N/A"){if(!venueWages[v])venueWages[v]={iHrs:0,oHrs:0,wages:0};venueWages[v].iHrs+=sf(r["*Hours"])}});
+Object.entries(venueWages).sort(([a],[b])=>a.localeCompare(b)).forEach(([v,d])=>{
+const vf=venueFees[v]||{};
+checksData.push([v,fm(d.iHrs),fm(d.oHrs),fm(d.iHrs-d.oHrs),fm(d.wages),vf.feePct||0,vf.niPct||0])});
+checksData.push([]);
+
+// Section 6: Invoice Totals (if invoices generated)
+if(invoices&&invoices.length>0){
+checksData.push(["INVOICE TOTALS","","","","","",""]);
+checksData.push(["Invoice Key","Shifts","Workers","Hours","Gross Wages","Fee Amount","NI Amount","Invoice Total","Orig Fee","Orig NI"]);
+invoices.forEach(inv=>{checksData.push([inv.key,inv.rows.length,inv.workers.length,inv.totalHrs,inv.grossWages,inv.feeAmt,inv.niAmt,inv.invoiceTotal,inv.origFee,inv.origNI])});
+const gw=fm(invoices.reduce((s,i)=>s+i.grossWages,0)),gf=fm(invoices.reduce((s,i)=>s+i.feeAmt,0)),gn=fm(invoices.reduce((s,i)=>s+i.niAmt,0)),gt=fm(invoices.reduce((s,i)=>s+i.invoiceTotal,0));
+const of2=fm(invoices.reduce((s,i)=>s+i.origFee,0)),on=fm(invoices.reduce((s,i)=>s+i.origNI,0));
+checksData.push(["GRAND TOTAL",proc.length,"","",gw,gf,gn,gt,of2,on])}
+
+const ws3=XLSX.utils.aoa_to_sheet(checksData);
+ws3["!cols"]=[{wch:25},{wch:12},{wch:12},{wch:15},{wch:12},{wch:12},{wch:12},{wch:15},{wch:25}];
+// Bold section headers
+checksData.forEach((row,ri)=>{if(typeof row[0]==="string"&&(row[0].match(/^[A-Z]{2,}/)||row[0]==="Metric"||row[0]==="Worker Name"||row[0]==="Venue"||row[0]==="CSV Row"||row[0]==="Invoice Key")){
+for(let ci=0;ci<row.length;ci++){const addr=XLSX.utils.encode_cell({r:ri,c:ci});if(ws3[addr])ws3[addr].s={font:{bold:true}}}}});
+XLSX.utils.book_append_sheet(wb,ws3,"Checks & Reconciliation");
+
+// Write and download
+const wbout=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+const blob=new Blob([wbout],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="Amcor_Invoice_Audit_"+new Date().toISOString().slice(0,10)+".xlsx";a.click();URL.revokeObjectURL(url)};
+
 const validation=useMemo(()=>raw&&res?getValidation(raw,res):null,[raw,res]);
 const inputSum=useMemo(()=>raw?getInputSummary(raw):null,[raw]);
 const outputSum=useMemo(()=>res?getOutputSummary(res):null,[res]);
@@ -414,6 +536,7 @@ return(<div className="container">
 <div className="actions">
 <button className="btn btn-blue" onClick={run}>Run Calculations</button>
 {res&&<button className="btn btn-green" onClick={dl}>Download CSV</button>}
+{res&&<button className="btn btn-purple" onClick={dlXlsx}>Export XLSX with Checks</button>}
 {res&&<button className="btn btn-gray" onClick={()=>setAll(!all)}>{all?"Key Columns":"All Columns"}</button>}
 </div>
 </div>}
