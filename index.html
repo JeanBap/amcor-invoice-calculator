@@ -306,6 +306,26 @@ const outputSum=useMemo(()=>res?getOutputSummary(res):null,[res]);
 const grouping=useMemo(()=>res?getGrouping(res):null,[res]);
 const invoices=useMemo(()=>{if(!res)return null;const proc=res.filter(r=>r.A_StartDate);if(!proc.length)return null;return genInvoices(proc,invoiceBy,venueFees)},[res,invoiceBy,venueFees]);
 
+const skippedRows=useMemo(()=>{if(!res)return null;const skipped=res.filter(r=>!r.A_StartDate);if(!skipped.length)return null;
+return skipped.map((r,i)=>{
+const wn=(r["Worker Name"]||"").trim(),vn=(r["Venue"]||"").trim(),ss=(r["Shift Start Time"]||"").trim(),desc=(r["*Description"]||"").trim();
+let reason="Unknown";
+if(!wn&&(!vn||vn==="#N/A"||vn==="N/A"))reason="No Worker Name + No Venue";
+else if(!wn)reason="No Worker Name";
+else if(!vn||vn==="#N/A"||vn==="N/A")reason="Venue is "+(!vn?"empty":vn);
+else if(!ss||!ss.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))reason="Invalid Shift Start Time";
+let rowType="Unknown";
+if(desc.match(/employer\s+liability/i))rowType="Employer Liability";
+else if(desc.match(/fee\s*@/i))rowType="Fee Line Item";
+else if(desc==="N/A"||!desc)rowType="Data Row (no description)";
+else if(desc.match(/^\d{2}\//))rowType="Shift Row";
+else rowType="Other";
+const filled={};const allCols=Object.keys(r);
+allCols.forEach(c=>{const v=(r[c]||"").toString().trim();if(v&&v!=="N/A"&&v!=="#N/A"&&v!=="0"&&v!=="0.0")filled[c]=v});
+return{idx:i,row:r,reason,rowType,desc,wn,vn,ss,filled,filledCount:Object.keys(filled).length,totalCols:allCols.length,
+hrs:r["*Hours"]||"",rate:r["*UnitAmount"]||r["Pay Rate"]||"",wages:r["*TotalWageCharge"]||"",fee:r["Flex Fee"]||"",ni:r["Employer Liability"]||"",feePct:r["Flex Fee %"]||"",niPct:r["National Insurance %"]||"",nsRole:r["NS_Role"]||"",invNum:r["InvoiceNumber"]||"",ref:r["NS_Reference"]||""}
+})},[res]);
+
 // ═══ ANALYSIS DIMENSIONS ═══
 const ANL_DIMS=[
 {key:"Venue",label:"Venue",get:r=>(r.Venue||"").trim()},
@@ -429,6 +449,70 @@ return(<div className="container">
 <b>{v}</b>: Fee {f.feePct||0}% | NI {f.niPct||0}%
 </div>)}
 </div></details>
+</div>}
+
+{/* Excluded/Skipped Rows */}
+{skippedRows&&skippedRows.length>0&&<div style={{marginBottom:16}}>
+<details><summary style={{fontSize:12,fontWeight:700,color:"#dc2626",cursor:"pointer",padding:"8px 12px",background:"#fef2f2",borderRadius:8,border:"1px solid #fca5a5"}}>
+Excluded Rows: {skippedRows.length} rows not processed
+<span style={{fontSize:10,color:"#64748b",marginLeft:8}}>
+({skippedRows.filter(r=>r.rowType==="Fee Line Item").length} fee lines, {skippedRows.filter(r=>r.rowType==="Employer Liability").length} NI lines, {skippedRows.filter(r=>r.rowType==="Data Row (no description)").length} data rows, {skippedRows.filter(r=>r.rowType==="Other"||r.rowType==="Unknown").length} other)
+</span></summary>
+<div style={{marginTop:8}}>
+{/* Summary by type */}
+<div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+{Object.entries(skippedRows.reduce((acc,r)=>{acc[r.rowType]=(acc[r.rowType]||0)+1;return acc},{})).sort(([,a],[,b])=>b-a).map(([type,count])=>
+<span key={type} className={`badge ${type.includes("Fee")?"ba":type.includes("Liability")?"br":type.includes("Shift")?"bb":"bp"}`} style={{padding:"4px 10px",fontSize:11}}>{type}: {count}</span>)}
+</div>
+{/* Summary by reason */}
+<div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+{Object.entries(skippedRows.reduce((acc,r)=>{acc[r.reason]=(acc[r.reason]||0)+1;return acc},{})).sort(([,a],[,b])=>b-a).map(([reason,count])=>
+<span key={reason} style={{fontSize:11,padding:"3px 8px",background:"#f1f5f9",borderRadius:4,border:"1px solid #e2e8f0"}}>{reason}: <b>{count}</b></span>)}
+</div>
+{/* Detailed table */}
+<div style={{maxHeight:400,overflow:"auto"}}>
+<table className="mini-table" style={{fontSize:10}}>
+<thead><tr><th>#</th><th>Type</th><th>Reason</th><th>Description</th><th>Worker</th><th>Venue</th><th>NS_Role</th><th>Invoice#</th><th>Reference</th><th>Hours</th><th>Rate</th><th>Wages</th><th>Fee ($)</th><th>Fee %</th><th>NI ($)</th><th>NI %</th><th>Filled Fields</th></tr></thead>
+<tbody>
+{skippedRows.map((sr,si)=><tr key={si} style={{background:sr.rowType.includes("Fee")?"#fef3c7":sr.rowType.includes("Liability")?"#fee2e2":"inherit"}}>
+<td>{si+1}</td>
+<td><span className={`badge ${sr.rowType.includes("Fee")?"ba":sr.rowType.includes("Liability")?"br":sr.rowType.includes("Shift")?"bb":"bp"}`} style={{fontSize:9}}>{sr.rowType}</span></td>
+<td style={{fontSize:9,color:"#64748b"}}>{sr.reason}</td>
+<td style={{maxWidth:250,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={sr.desc}>{sr.desc||"-"}</td>
+<td>{sr.wn||<span style={{color:"#dc2626"}}>-</span>}</td>
+<td>{sr.vn||<span style={{color:"#dc2626"}}>-</span>}</td>
+<td>{sr.nsRole||"-"}</td>
+<td>{sr.invNum||"-"}</td>
+<td style={{maxWidth:120,overflow:"hidden",textOverflow:"ellipsis"}} title={sr.ref}>{sr.ref||"-"}</td>
+<td>{sr.hrs||"-"}</td>
+<td>{sr.rate||"-"}</td>
+<td style={{fontWeight:sr.wages?"600":"normal"}}>{sr.wages?"$"+sr.wages:"-"}</td>
+<td style={{color:"#d97706",fontWeight:sr.fee?"600":"normal"}}>{sr.fee?"$"+sr.fee:"-"}</td>
+<td>{sr.feePct||"-"}</td>
+<td style={{color:"#dc2626",fontWeight:sr.ni?"600":"normal"}}>{sr.ni?"$"+sr.ni:"-"}</td>
+<td>{sr.niPct||"-"}</td>
+<td style={{textAlign:"center"}}><span className="badge bb" style={{fontSize:9}}>{sr.filledCount}/{sr.totalCols}</span></td>
+</tr>)}
+</tbody>
+</table>
+</div>
+{/* Filled fields detail for fee/NI rows */}
+{skippedRows.filter(r=>r.rowType==="Fee Line Item"||r.rowType==="Employer Liability").length>0&&<div style={{marginTop:8}}>
+<details><summary style={{fontSize:11,color:"#475569",cursor:"pointer"}}>View all filled fields on fee/NI rows</summary>
+<div style={{marginTop:6,maxHeight:300,overflow:"auto"}}>
+{skippedRows.filter(r=>r.rowType==="Fee Line Item"||r.rowType==="Employer Liability").map((sr,si)=>
+<div key={si} style={{marginBottom:8,padding:8,background:"#fff",border:"1px solid #e2e8f0",borderRadius:6}}>
+<div style={{fontWeight:700,fontSize:11,color:sr.rowType.includes("Fee")?"#92400e":"#991b1b",marginBottom:4}}>{sr.rowType} - {sr.desc} ({sr.filledCount} fields filled)</div>
+<div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+{Object.entries(sr.filled).map(([col,val])=><span key={col} style={{fontSize:9,padding:"2px 6px",background:col.includes("Fee")||col.includes("Liability")||col.includes("Insurance")?"#fef3c7":"#f1f5f9",borderRadius:3,border:"1px solid #e2e8f0"}}>
+<b>{col}</b>: {String(val).length>30?String(val).substring(0,30)+"...":val}
+</span>)}
+</div>
+</div>)}
+</div></details>
+</div>}
+</div>
+</details>
 </div>}
 
 {/* Individual invoices */}
