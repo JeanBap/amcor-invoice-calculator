@@ -231,6 +231,8 @@ const[fieldMap,setFieldMap]=useState({});const[openGroups,setOpenGroups]=useStat
 const[editVC,setEditVC]=useState(()=>JSON.parse(JSON.stringify(VC)));
 const[anlFilters,setAnlFilters]=useState({});const[anlGroupBy,setAnlGroupBy]=useState(["Venue"]);const[anlExpanded,setAnlExpanded]=useState({});
 const[invoiceBy,setInvoiceBy]=useState(["Venue"]);const[venueFees,setVenueFees]=useState({});const[invExpanded,setInvExpanded]=useState({});
+const[rowHandling,setRowHandling]=useState({noVenue:"exclude",noWorker:"exclude",noShiftTime:"exclude",noHours:"exclude",feeRows:"extract",naVenue:"exclude",unknownVenue:"default_rules",zeroPayRate:"warn"});
+const[qaDetail,setQaDetail]=useState(null); // null or {type,data} for drill-down
 
 const hFile=useCallback(f=>{if(!f)return;setFn(f.name);const r=new FileReader();r.onload=e=>{const p=Papa.parse(e.target.result,{header:true,skipEmptyLines:true});setRaw(p.data);setIc(p.meta.fields||[]);setRes(null);setStats(null);
 // Auto-map fields
@@ -414,6 +416,30 @@ return(<div className="container">
 {res&&<button className="btn btn-green" onClick={dl}>Download CSV</button>}
 {res&&<button className="btn btn-gray" onClick={()=>setAll(!all)}>{all?"Key Columns":"All Columns"}</button>}
 </div>
+</div>}
+
+{/* ROW HANDLING OPTIONS */}
+{raw&&<div className="card" style={{borderLeft:"3px solid #d97706"}}>
+<details><summary style={{fontSize:14,fontWeight:700,color:"#92400e",cursor:"pointer"}}>Row Handling Rules <span className="badge ba" style={{fontSize:10,marginLeft:6}}>Configure how edge cases are handled</span></summary>
+<div style={{marginTop:12,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:10}}>
+{[
+{key:"feeRows",label:"Fee / NI Line-Item Rows",desc:"Rows where *Description contains 'Employer liability @' or 'fee @'. These carry fee % data.",opts:[["extract","Extract fee % then exclude from calcs"],["include_invoice","Include in invoice totals only"],["exclude","Exclude entirely"]]},
+{key:"noVenue",label:"Missing Venue (empty)",desc:"Row has no Venue value at all.",opts:[["exclude","Exclude from processing"],["default_rules","Process with default venue rules"]]},
+{key:"naVenue",label:"Venue = #N/A or N/A",desc:"Row venue is #N/A or N/A. Often fee/NI line items or placeholder rows.",opts:[["exclude","Exclude from processing"],["default_rules","Process with default venue rules"]]},
+{key:"unknownVenue",label:"Unknown Venue (not in config)",desc:"Venue exists but not found in the 36-venue config.",opts:[["default_rules","Process with default rules (current)"],["exclude","Exclude from processing"],["warn_only","Process + flag as warning"]]},
+{key:"noWorker",label:"Missing Worker Name",desc:"Row has no Worker Name. Cannot attribute shift to anyone.",opts:[["exclude","Exclude from processing"],["placeholder","Process as 'Unknown Worker'"]]},
+{key:"noShiftTime",label:"Invalid / Missing Shift Start Time",desc:"Shift Start Time doesn't match ISO datetime pattern. Can't determine day/OT.",opts:[["exclude","Exclude from processing"],["midnight","Assume midnight start (00:00)"]]},
+{key:"noHours",label:"Missing / Zero Hours",desc:"*Hours is empty or 0. No labor to calculate.",opts:[["exclude","Exclude from processing"],["fee_only","Include for invoice fee calculation only (use fee % on row)"]]},
+{key:"zeroPayRate",label:"Missing / Zero Pay Rate",desc:"Pay Rate is empty or 0. Wages will be $0 but hours count for OT/thresholds.",opts:[["warn","Process + flag warning (current)"],["exclude","Exclude from processing"],["unit_amount","Use *UnitAmount as pay rate fallback"]]}
+].map(s=><div key={s.key} style={{padding:10,background:"#fff",border:"1px solid #e2e8f0",borderRadius:6}}>
+<div style={{fontWeight:700,fontSize:12,color:"#1e3a5f",marginBottom:2}}>{s.label}</div>
+<div style={{fontSize:10,color:"#64748b",marginBottom:6}}>{s.desc}</div>
+<select style={{width:"100%",fontSize:11,padding:"4px 6px"}} value={rowHandling[s.key]} onChange={e=>setRowHandling(p=>({...p,[s.key]:e.target.value}))}>
+{s.opts.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+</select>
+</div>)}
+</div>
+</details>
 </div>}
 
 {/* STATS BAR */}
@@ -636,9 +662,10 @@ const fHrs=fRows.reduce((s,r)=>s+sf(r["*Hours"]),0);
 const fVW=new Set(fRows.map(r=>`${(r["Venue"]||"").trim()}|${(r["Worker Name"]||"").trim()}`));
 const hasFilter=Object.keys(anlFilters).length>0;
 return(<div style={{marginBottom:16,background:allGood?"#ecfdf5":"#fef2f2",border:`1px solid ${allGood?"#86efac":"#fca5a5"}`,borderRadius:8,padding:12}}>
-<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,cursor:allGood?"default":"pointer"}} onClick={()=>{if(!allGood)setQaDetail(qaDetail?null:{missingW,missingV,missingVW,skip,inp,proc,iHrs,oHrs,iWorkers,oWorkers,iVenues,oVenues,iVW,oVW})}}>
 <span style={{fontSize:14,fontWeight:700,color:allGood?"#166534":"#991b1b"}}>{allGood?"QA Reconciliation: ALL MATCHED":"QA Reconciliation: DISCREPANCIES FOUND"}</span>
 <span className={`badge ${allGood?"bg":"br"}`}>{allGood?"PASS":"CHECK"}</span>
+{!allGood&&<span style={{fontSize:11,color:"#991b1b",textDecoration:"underline"}}>Click for detailed report {qaDetail?"\u25B2":"\u25BC"}</span>}
 </div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8,fontSize:12}}>
 <div style={{background:"#fff",borderRadius:6,padding:8,border:"1px solid #e2e8f0"}}>
@@ -687,6 +714,115 @@ return(<div style={{marginBottom:16,background:allGood?"#ecfdf5":"#fef2f2",borde
 {skip.length>0&&<div style={{marginTop:8,fontSize:11,color:"#64748b"}}>
 <b>Skipped rows ({skip.length}):</b> Rows without a valid Worker Name, Venue, or with #N/A venue are excluded from processing. These are typically header rows, blank rows, or placeholder entries.
 </div>}
+
+{/* ═══ DETAILED DISCREPANCY DRILL-DOWN ═══ */}
+{qaDetail&&<div style={{marginTop:12,border:"2px solid #dc2626",borderRadius:8,overflow:"hidden"}}>
+<div style={{background:"#991b1b",color:"#fff",padding:"8px 14px",fontWeight:700,fontSize:13,display:"flex",justifyContent:"space-between"}}>
+<span>Detailed Discrepancy Report</span>
+<span style={{cursor:"pointer",fontSize:16}} onClick={()=>setQaDetail(null)}>&times;</span>
+</div>
+<div style={{padding:12,background:"#fff",maxHeight:600,overflow:"auto"}}>
+
+{/* 1. Missing Workers */}
+{qaDetail.missingW.length>0&&<div style={{marginBottom:16}}>
+<div style={{fontWeight:700,fontSize:12,color:"#dc2626",marginBottom:6,borderBottom:"2px solid #fee2e2",paddingBottom:4}}>Missing Workers ({qaDetail.missingW.length})</div>
+<div style={{fontSize:11,color:"#64748b",marginBottom:6}}>These workers exist in input CSV but have no processed output rows.</div>
+<table className="mini-table" style={{fontSize:11}}><thead><tr><th>Worker Name</th><th>Input Rows</th><th>Venues</th><th>Hours</th><th>Reason</th></tr></thead><tbody>
+{qaDetail.missingW.map(w=>{
+const wRows=qaDetail.inp.filter(r=>(r["Worker Name"]||"").trim()===w);
+const wVenues=[...new Set(wRows.map(r=>(r["Venue"]||"").trim()))].filter(Boolean);
+const wHrs=wRows.reduce((s,r)=>s+sf(r["*Hours"]),0);
+const reasons=[];
+wRows.forEach(r=>{const v=(r["Venue"]||"").trim();const ss=(r["Shift Start Time"]||"").trim();
+if(!v||v==="#N/A"||v==="N/A")reasons.push("Venue: "+(v||"empty"));
+if(!ss.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))reasons.push("Bad shift time");
+if(!sf(r["*Hours"]))reasons.push("Zero hours")});
+const uniqReasons=[...new Set(reasons)];
+return<tr key={w} style={{background:"#fef2f2"}}><td style={{fontWeight:600}}>{w}</td><td>{wRows.length}</td><td>{wVenues.join(", ")||"N/A"}</td><td>{fm(wHrs)}</td>
+<td>{uniqReasons.map(r=><span key={r} className="badge br" style={{fontSize:9,marginRight:3}}>{r}</span>)}</td></tr>})}
+</tbody></table>
+</div>}
+
+{/* 2. Missing Venues */}
+{qaDetail.missingV.length>0&&<div style={{marginBottom:16}}>
+<div style={{fontWeight:700,fontSize:12,color:"#dc2626",marginBottom:6,borderBottom:"2px solid #fee2e2",paddingBottom:4}}>Missing Venues ({qaDetail.missingV.length})</div>
+<div style={{fontSize:11,color:"#64748b",marginBottom:6}}>These venues exist in input but have no processed output rows.</div>
+<table className="mini-table" style={{fontSize:11}}><thead><tr><th>Venue</th><th>Input Rows</th><th>Workers</th><th>Hours</th><th>In Config?</th></tr></thead><tbody>
+{qaDetail.missingV.map(v=>{
+const vRows=qaDetail.inp.filter(r=>(r["Venue"]||"").trim()===v);
+const vWorkers=[...new Set(vRows.map(r=>(r["Worker Name"]||"").trim()))].filter(Boolean);
+const vHrs=vRows.reduce((s,r)=>s+sf(r["*Hours"]),0);
+return<tr key={v} style={{background:"#fef2f2"}}><td style={{fontWeight:600}}>{v}</td><td>{vRows.length}</td><td>{vWorkers.length} ({vWorkers.slice(0,3).join(", ")}{vWorkers.length>3?"...":""})</td><td>{fm(vHrs)}</td>
+<td>{lkV(v)?<span className="badge bg">Yes</span>:<span className="badge br">No</span>}</td></tr>})}
+</tbody></table>
+</div>}
+
+{/* 3. Dropped Venue x Worker Combos */}
+{qaDetail.missingVW.length>0&&<div style={{marginBottom:16}}>
+<div style={{fontWeight:700,fontSize:12,color:"#d97706",marginBottom:6,borderBottom:"2px solid #fef3c7",paddingBottom:4}}>Dropped Venue x Worker Combos ({qaDetail.missingVW.length})</div>
+<div style={{fontSize:11,color:"#64748b",marginBottom:6}}>These venue+worker combinations exist in input but not in processed output.</div>
+<table className="mini-table" style={{fontSize:11}}><thead><tr><th>Venue</th><th>Worker</th><th>Input Rows</th><th>Hours</th><th>Likely Reason</th></tr></thead><tbody>
+{qaDetail.missingVW.slice(0,50).map(k=>{
+const[v,w]=k.split("|");
+const mRows=qaDetail.inp.filter(r=>(r["Venue"]||"").trim()===v&&(r["Worker Name"]||"").trim()===w);
+const mHrs=mRows.reduce((s,r)=>s+sf(r["*Hours"]),0);
+const reasons=[];
+mRows.forEach(r=>{const ss=(r["Shift Start Time"]||"").trim();
+if(!ss.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))reasons.push("Bad shift time");
+if(!sf(r["*Hours"]))reasons.push("Zero hours")});
+return<tr key={k}><td>{v}</td><td>{w}</td><td>{mRows.length}</td><td>{fm(mHrs)}</td>
+<td>{[...new Set(reasons)].map(r=><span key={r} className="badge ba" style={{fontSize:9,marginRight:3}}>{r}</span>)}{reasons.length===0&&<span className="badge bb" style={{fontSize:9}}>Unknown</span>}</td></tr>})}
+{qaDetail.missingVW.length>50&&<tr><td colSpan={5} style={{textAlign:"center",color:"#64748b"}}>... and {qaDetail.missingVW.length-50} more</td></tr>}
+</tbody></table>
+</div>}
+
+{/* 4. Hours Discrepancy */}
+{Math.abs(qaDetail.iHrs-qaDetail.oHrs)>=0.01&&<div style={{marginBottom:16}}>
+<div style={{fontWeight:700,fontSize:12,color:"#dc2626",marginBottom:6,borderBottom:"2px solid #fee2e2",paddingBottom:4}}>Hours Discrepancy: {fm(qaDetail.iHrs-qaDetail.oHrs)} hours unaccounted</div>
+<div style={{fontSize:11,color:"#64748b",marginBottom:6}}>Breakdown of where hours were lost between input and output.</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+<div style={{padding:8,background:"#f8fafc",borderRadius:6,border:"1px solid #e2e8f0"}}>
+<div style={{fontWeight:700,fontSize:11,marginBottom:4}}>Hours by exclusion reason</div>
+{(()=>{const byReason={};qaDetail.skip.forEach(r=>{const v=(r["Venue"]||"").trim();const w=(r["Worker Name"]||"").trim();const ss=(r["Shift Start Time"]||"").trim();const h=sf(r["*Hours"]);
+let reason="Other";if(!w)reason="No Worker Name";else if(!v||v==="#N/A"||v==="N/A")reason="No/Invalid Venue";else if(!ss.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))reason="Bad Shift Time";
+if(!byReason[reason])byReason[reason]={count:0,hrs:0};byReason[reason].count++;byReason[reason].hrs+=h});
+return Object.entries(byReason).sort(([,a],[,b])=>b.hrs-a.hrs).map(([r,d])=>
+<div key={r} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:"1px solid #f1f5f9",fontSize:11}}><span>{r} ({d.count} rows)</span><b style={{color:"#dc2626"}}>{fm(d.hrs)} hrs</b></div>)})()}
+</div>
+<div style={{padding:8,background:"#f8fafc",borderRadius:6,border:"1px solid #e2e8f0"}}>
+<div style={{fontWeight:700,fontSize:11,marginBottom:4}}>Skipped rows with hours > 0</div>
+<div style={{maxHeight:200,overflow:"auto"}}>
+{qaDetail.skip.filter(r=>sf(r["*Hours"])>0).slice(0,20).map((r,i)=>
+<div key={i} style={{fontSize:10,padding:"2px 0",borderBottom:"1px solid #f1f5f9"}}>
+<b>{sf(r["*Hours"])}h</b> - {(r["Worker Name"]||"").trim()||"(no name)"} @ {(r["Venue"]||"").trim()||"(no venue)"} - {(r["*Description"]||"").trim().substring(0,50)||"N/A"}
+</div>)}
+{qaDetail.skip.filter(r=>sf(r["*Hours"])>0).length>20&&<div style={{fontSize:10,color:"#64748b"}}>...and {qaDetail.skip.filter(r=>sf(r["*Hours"])>0).length-20} more</div>}
+</div>
+</div>
+</div>
+</div>}
+
+{/* 5. All Skipped Rows Detail */}
+<div style={{marginBottom:8}}>
+<div style={{fontWeight:700,fontSize:12,color:"#475569",marginBottom:6,borderBottom:"2px solid #e2e8f0",paddingBottom:4}}>All Skipped Rows ({qaDetail.skip.length})</div>
+<table className="mini-table" style={{fontSize:10}}><thead><tr><th>CSV Row</th><th>Worker</th><th>Venue</th><th>Description</th><th>Hours</th><th>Pay Rate</th><th>Shift Time</th><th>NS_Role</th><th>Exclusion Reason</th></tr></thead><tbody>
+{qaDetail.skip.map((r,i)=>{
+const v=(r["Venue"]||"").trim(),w=(r["Worker Name"]||"").trim(),ss=(r["Shift Start Time"]||"").trim(),desc=(r["*Description"]||"").trim();
+let reason="Unknown";if(!w&&(!v||v==="#N/A"||v==="N/A"))reason="No Worker + No Venue";else if(!w)reason="No Worker Name";else if(!v||v==="#N/A"||v==="N/A")reason="Venue: "+(v||"empty");else if(!ss.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))reason="Bad Shift Time";
+const isFee=desc.match(/fee\s*@|employer\s+liability/i);
+return<tr key={i} style={{background:isFee?"#fef3c7":"inherit"}}>
+<td>{i+1}</td><td>{w||<span style={{color:"#dc2626"}}>-</span>}</td><td>{v||<span style={{color:"#dc2626"}}>-</span>}</td>
+<td style={{maxWidth:200,overflow:"hidden",textOverflow:"ellipsis"}} title={desc}>{desc||"N/A"}</td>
+<td style={{fontWeight:sf(r["*Hours"])>0?600:"normal"}}>{r["*Hours"]||"-"}</td><td>{r["Pay Rate"]||"-"}</td>
+<td style={{maxWidth:120,overflow:"hidden",textOverflow:"ellipsis"}}>{ss||"-"}</td><td>{(r["NS_Role"]||"").trim()||"-"}</td>
+<td><span className={`badge ${isFee?"ba":"br"}`} style={{fontSize:9}}>{isFee?"Fee/NI Row":reason}</span></td>
+</tr>})}
+</tbody></table>
+</div>
+
+</div>
+</div>}
+
 </div>)})()}
 
 {/* Dimension toggles */}
